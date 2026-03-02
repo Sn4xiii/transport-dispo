@@ -5,11 +5,15 @@
 - lädt weitere User ein
 - kann Rollen vergeben
 
-## User
+## BGN Admin
+- Transportplan anlegen/berarbeiten/löschen
+- drag and Drop verschieben (Spalten)
+
+## PLS
 - erhält Invite per Mail
 - setzt Passwort
-- sieht nur eigenen Mandanten
+- sieht alles kann fast alles bearbeiten
 
-## Mandant
-- isolierte Daten
-- keine Sicht auf andere Mandanten
+
+## EWALS
+- fühlt den Transportplan mit infos
