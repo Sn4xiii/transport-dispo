@@ -1,0 +1,173 @@
+/* ===== ADMIN CONTAINER ===== */
+
+.admin-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+}
+
+.admin-container h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 25px;
+  color: #1f2937;
+}
+
+
+/* ===== FORM CARD ===== */
+
+.admin-form {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+
+/* ===== LABELS ===== */
+
+.admin-form label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+
+/* ===== INPUTS ===== */
+
+.admin-form input,
+.admin-form select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-form input:focus,
+.admin-form select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+
+/* ===== BUTTONS ===== */
+
+.admin-form button,
+.btn-primary {
+  background: #2563eb;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.admin-form button:hover,
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.admin-form button:active,
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+
+/* ===== DELETE BUTTON ===== */
+
+.delete-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.delete-btn:hover {
+  background: #b91c1c;
+}
+
+
+/* ===== ADMIN ROWS (Spalten Liste) ===== */
+
+.admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.admin-row:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+}
+
+.admin-meta {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+
+/* ===== MODAL ===== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90%;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal h2 {
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modal-actions button:first-child {
+  background: #9ca3af;
+}
+
+.modal-actions button:first-child:hover {
+  background: #6b7280;
+}

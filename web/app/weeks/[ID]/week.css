@@ -97,3 +97,79 @@
   text-align: center;
   color: #6b7280;
 }
+
+.cell-view {
+  cursor: pointer;
+  padding: 6px;
+}
+
+.cell-view:hover {
+  background: #f3f4f6;
+}
+
+.edit-cell {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-cell input {
+  flex: 1;
+  padding: 4px;
+}
+
+.edit-actions button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.edit-actions button:last-child {
+  background: #dc2626;
+}
+
+.delay-critical {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.delay-ok {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.cell-view {
+  cursor: pointer;
+  padding: 6px;
+}
+
+.cell-view:hover {
+  background: #f3f4f6;
+}
+
+.edit-cell {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-cell input {
+  flex: 1;
+  padding: 4px;
+}
+
+.edit-actions button {
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.edit-actions button:first-child {
+  background: #16a34a;
+  color: white;
+}
+
+.edit-actions button:last-child {
+  background: #dc2626;
+  color: white;
+}

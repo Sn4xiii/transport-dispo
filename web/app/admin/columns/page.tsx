@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { TourColumn } from "@/types/database";
+import NewColumnModal from "@/components/AdminColumnModal";
 import "./admin.css";
 
 export default function AdminColumns() {
   const [columns, setColumns] = useState<TourColumn[]>([]);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  /* ✅ Daten direkt im Effect laden */
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
@@ -32,51 +32,53 @@ export default function AdminColumns() {
     setColumns(data || []);
   };
 
-  const handleDrop = async (targetId: string) => {
-    if (!draggedId) return;
+  const deleteColumn = async (id: string) => {
+    if (!confirm("Spalte wirklich löschen?")) return;
 
-    const draggedIndex = columns.findIndex(
-      (c) => c.id === draggedId
-    );
-    const targetIndex = columns.findIndex(
-      (c) => c.id === targetId
-    );
+    await supabase
+      .from("tour_columns")
+      .delete()
+      .eq("id", id);
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const newCols = [...columns];
-    const [removed] = newCols.splice(draggedIndex, 1);
-    newCols.splice(targetIndex, 0, removed);
-
-    for (let i = 0; i < newCols.length; i++) {
-      await supabase
-        .from("tour_columns")
-        .update({ position: i + 1 })
-        .eq("id", newCols[i].id);
-    }
-
-    setDraggedId(null);
     reloadColumns();
   };
 
   return (
     <div className="admin-container">
-      <h1>Spalten konfigurieren</h1>
+      <div className="admin-header">
+        <h1>Spalten konfigurieren</h1>
+        <button
+          className="btn-primary"
+          onClick={() => setModalOpen(true)}
+        >
+          + Neue Spalte
+        </button>
+      </div>
 
       {columns.map((col) => (
-        <div
-          key={col.id}
-          className="admin-row"
-          draggable
-          onDragStart={() => setDraggedId(col.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => handleDrop(col.id)}
-        >
-          <span>
-            {col.label} ({col.type})
-          </span>
+        <div key={col.id} className="admin-row">
+          <div>
+            <strong>{col.label}</strong>
+            <div className="admin-meta">
+              Key: {col.key} | Typ: {col.type}
+            </div>
+          </div>
+
+          <button
+            className="delete-btn"
+            onClick={() => deleteColumn(col.id)}
+          >
+            Löschen
+          </button>
         </div>
       ))}
+
+      <NewColumnModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSaved={reloadColumns}
+        currentCount={columns.length}
+      />
     </div>
   );
 }

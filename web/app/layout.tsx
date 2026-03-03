@@ -8,8 +8,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de">
-      <body>
-        <SidebarLayout>{children}</SidebarLayout>
+      <body className="app-body">
+        <SidebarLayout>
+          <main className="app-main">
+            {children}
+          </main>
+        </SidebarLayout>
       </body>
     </html>
   );

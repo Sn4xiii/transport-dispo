@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Menu, X } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Menu, X, Settings } from "lucide-react";
 import "./layout.css";
 
 export default function SidebarLayout({
@@ -75,9 +75,44 @@ export default function SidebarLayout({
         </div>
 
         <nav className="nav">
-          {navItem("/", "Dashboard", LayoutDashboard)}
-          {navItem("/weeks", "Wochenplanung", CalendarDays)}
-          {navItem("/admin/columns", "Admin", CalendarDays)}
+
+          {/* Hauptbereich */}
+          <div className="nav-section">
+            {navItem("/", "Dashboard", LayoutDashboard)}
+          </div>
+
+          {/* Planung */}
+          <div className="nav-section">
+            <div className="nav-section-title">
+              Planung
+            </div>
+
+            {navItem(
+              "/weeks",
+              "Wochenübersicht",
+              CalendarDays
+            )}
+          </div>
+
+          {/* Admin Bereich */}
+          <div className="nav-section">
+            <div className="nav-section-title">
+              Admin
+            </div>
+
+            {navItem(
+              "/admin/weeks",
+              "Neue Woche",
+              CalendarDays
+            )}
+
+            {navItem(
+              "/admin/columns",
+              "Transport Spalten",
+              Settings
+            )}
+          </div>
+
         </nav>
 
         <div className="sidebar-footer">
