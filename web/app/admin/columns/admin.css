@@ -1,0 +1,119 @@
+.admin-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 30px;
+}
+
+.admin-container h1 {
+  font-size: 26px;
+  margin-bottom: 25px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.admin-row:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.admin-row:active {
+  cursor: grabbing;
+}
+
+.admin-row span {
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.admin-row button {
+  background: #2563eb;
+  border: none;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.admin-row button:hover {
+  background: #1d4ed8;
+}
+
+/* Dragging State */
+.admin-row.dragging {
+  opacity: 0.5;
+  background: #e0e7ff;
+  border-color: #6366f1;
+}
+
+/* Optional: Add Column Button */
+.admin-add-button {
+  margin-top: 20px;
+  padding: 10px 16px;
+  background: #16a34a;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.admin-add-button:hover {
+  background: #15803d;
+}
+
+/* Optional: Form Styling */
+.admin-form {
+  margin-top: 25px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-form input,
+.admin-form select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+.admin-form label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.admin-form button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-form button:hover {
+  background: #1d4ed8;
+}

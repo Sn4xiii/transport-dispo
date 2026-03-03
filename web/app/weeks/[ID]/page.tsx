@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Tour, TourColumn, TourValue } from "@/types/database";
+import NewTourModal from "@/components/NewTourModal";
+import "./week.css";
 
 type PlanningWeek = {
   id: string;
@@ -12,48 +15,71 @@ type PlanningWeek = {
   end_date: string;
 };
 
-type Tour = {
-  id: string;
-  truck_number: string | null;
-  plate: string | null;
-  planned_arrival_werk1: string | null;
-  actual_arrival_werk1: string | null;
-};
-
 export default function WeekDetail() {
   const params = useParams();
   const weekId = params.id as string;
 
   const [week, setWeek] = useState<PlanningWeek | null>(null);
   const [tours, setTours] = useState<Tour[]>([]);
+  const [columns, setColumns] = useState<TourColumn[]>([]);
+  const [values, setValues] = useState<
+    Record<string, Record<string, string>>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!weekId) return;
 
     const loadData = async () => {
       try {
-        const { data: weekData, error: weekError } = await supabase
+        // Woche laden
+        const { data: weekData } = await supabase
           .from("planning_weeks")
           .select("*")
           .eq("id", weekId)
           .maybeSingle();
 
-        if (weekError) throw weekError;
-        if (!weekData) throw new Error("Woche nicht gefunden.");
-
         setWeek(weekData);
 
-        const { data: toursData, error: toursError } = await supabase
+        // Spalten laden
+        const { data: columnData } = await supabase
+          .from("tour_columns")
+          .select("*")
+          .eq("active", true)
+          .order("position", { ascending: true });
+
+        setColumns(columnData || []);
+
+        // Touren laden
+        const { data: tourData } = await supabase
           .from("tours")
           .select("*")
-          .eq("planning_week_id", weekId)
-          .order("planned_arrival_werk1", { ascending: true });
+          .eq("planning_week_id", weekId);
 
-        if (toursError) throw toursError;
+        setTours(tourData || []);
 
-        setTours(toursData || []);
+        // Werte laden
+        const { data: valueData } = await supabase
+          .from("tour_column_values")
+          .select("*");
+
+        const valueMap: Record<
+          string,
+          Record<string, string>
+        > = {};
+
+        valueData?.forEach((val: TourValue) => {
+          if (!valueMap[val.tour_id]) {
+            valueMap[val.tour_id] = {};
+          }
+
+          valueMap[val.tour_id][val.column_id] =
+            val.value;
+        });
+
+        setValues(valueMap);
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -68,117 +94,119 @@ export default function WeekDetail() {
     loadData();
   }, [weekId]);
 
-  const calculateDelay = (
-    planned: string | null,
-    actual: string | null
+  const handleInlineUpdate = async (
+    tourId: string,
+    columnId: string,
+    value: string
   ) => {
-    if (!planned || !actual) return null;
+    await supabase
+      .from("tour_column_values")
+      .upsert({
+        tour_id: tourId,
+        column_id: columnId,
+        value,
+      });
 
-    const plannedDate = new Date(planned).getTime();
-    const actualDate = new Date(actual).getTime();
-
-    const diffMinutes = Math.round((actualDate - plannedDate) / 60000);
-
-    return diffMinutes;
+    setValues((prev) => ({
+      ...prev,
+      [tourId]: {
+        ...prev[tourId],
+        [columnId]: value,
+      },
+    }));
   };
 
-  if (loading) return <div className="p-6">Lade Woche...</div>;
+  if (loading)
+    return <div className="status-box">Lade Woche...</div>;
 
   if (error)
     return (
-      <div className="p-6 text-red-600 bg-red-50 rounded">
+      <div className="status-box error">
         Fehler: {error}
       </div>
     );
 
-  if (!week) return <div className="p-6">Woche nicht gefunden.</div>;
+  if (!week) return null;
 
   return (
-    <div className="p-6">
-      <div className="mb-8 flex justify-between items-center">
+    <div className="week-container">
+      <div className="week-header">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1>
             KW {week.week_number} / {week.year}
           </h1>
-          <p className="text-gray-500">
-            {new Date(week.start_date).toLocaleDateString("de-DE")} –{" "}
-            {new Date(week.end_date).toLocaleDateString("de-DE")}
+          <p>
+            {new Date(
+              week.start_date
+            ).toLocaleDateString("de-DE")}{" "}
+            –{" "}
+            {new Date(
+              week.end_date
+            ).toLocaleDateString("de-DE")}
           </p>
         </div>
 
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+        <button
+          className="btn-primary"
+          onClick={() => setModalOpen(true)}
+        >
           + Tour hinzufügen
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+      <div className="table-wrapper">
         {tours.length === 0 ? (
-          <div className="p-6 text-gray-500">
+          <div className="empty-state">
             Noch keine Touren vorhanden.
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+          <table className="tour-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left">LKW</th>
-                <th className="px-4 py-3 text-left">Kennzeichen</th>
-                <th className="px-4 py-3 text-left">Geplant Werk 1</th>
-                <th className="px-4 py-3 text-left">Ist Werk 1</th>
-                <th className="px-4 py-3 text-left">Delay</th>
+                {columns
+                  .filter((col) => col.visible)
+                  .map((col) => (
+                    <th key={col.id}>{col.label}</th>
+                  ))}
               </tr>
             </thead>
 
             <tbody>
-              {tours.map((tour) => {
-                const delay = calculateDelay(
-                  tour.planned_arrival_werk1,
-                  tour.actual_arrival_werk1
-                );
-
-                return (
-                  <tr key={tour.id} className="border-t">
-                    <td className="px-4 py-3 font-medium">
-                      {tour.truck_number ?? "-"}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {tour.plate ?? "-"}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {tour.planned_arrival_werk1
-                        ? new Date(
-                            tour.planned_arrival_werk1
-                          ).toLocaleString("de-DE")
-                        : "-"}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {tour.actual_arrival_werk1
-                        ? new Date(
-                            tour.actual_arrival_werk1
-                          ).toLocaleString("de-DE")
-                        : "-"}
-                    </td>
-
-                    <td
-                      className={`px-4 py-3 font-semibold ${
-                        delay !== null
-                          ? delay > 15
-                            ? "text-red-600"
-                            : "text-green-600"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {delay !== null ? `${delay} min` : "-"}
-                    </td>
-                  </tr>
-                );
-              })}
+              {tours.map((tour) => (
+                <tr key={tour.id}>
+                  {columns
+                    .filter((col) => col.visible)
+                    .map((col) => (
+                      <td key={col.id}>
+                        <input
+                          defaultValue={
+                            values[tour.id]?.[
+                              col.id
+                            ] || ""
+                          }
+                          onBlur={(e) =>
+                            handleInlineUpdate(
+                              tour.id,
+                              col.id,
+                              e.target.value
+                            )
+                          }
+                        />
+                      </td>
+                    ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
       </div>
+
+      <NewTourModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        weekId={weekId}
+        columns={columns}
+      />
     </div>
   );
 }

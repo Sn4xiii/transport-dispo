@@ -1,31 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Base styling */
-body {
-  @apply antialiased bg-gray-50 dark:bg-gray-950;
-}
-
-/* Premium animation */
-@layer utilities {
-  .animate-fadeIn {
-    animation: fadeIn 0.4s ease-out forwards;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f6f9;
 }
