@@ -1,14 +1,18 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* Smooth scroll */
 html {
   scroll-behavior: smooth;
 }
 
+/* Base styling */
 body {
-  font-family: system-ui, sans-serif;
+  @apply antialiased bg-gray-50 dark:bg-gray-950;
 }
 
-/* Premium fade animation */
+/* Premium animation */
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.4s ease-out forwards;
