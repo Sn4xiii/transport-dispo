@@ -1,175 +1,182 @@
 .week-container {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
 }
+
+/* HEADER */
 
 .week-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 30px;
 }
 
-.week-header h1 {
-  margin: 0;
-  font-size: 26px;
+.week-subtitle {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 14px;
 }
 
-.week-header p {
-  margin: 4px 0 0;
-  color: #6b7280;
+/* BUTTON */
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.status-box {
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+.btn-primary:hover {
+  background: #1d4ed8;
 }
 
-.status-box.error {
-  background: #fee2e2;
-  color: #b91c1c;
-}
+/* DAY CARD */
 
-/* ===== TABLE ===== */
-
-.table-wrapper {
+.day-card {
   background: white;
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  border: 1px solid #e2e8f0;
   overflow: hidden;
+  margin-bottom: 18px;
 }
+
+/* DAY HEADER */
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #f8fafc;
+}
+
+.day-header:hover {
+  background: #eef2f7;
+}
+
+.day-count {
+  background: #2563eb;
+  color: white;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* TABLE WRAPPER (für Scroll + Sticky) */
+
+.table-wrapper {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* TABLE */
 
 .tour-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  table-layout: fixed;
 }
 
-.tour-table thead {
-  background: #f9fafb;
-  text-transform: uppercase;
-  font-size: 12px;
-  color: #6b7280;
-}
+/* STICKY HEADER */
 
-.tour-table th {
+.tour-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 10;
   text-align: left;
-  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
 }
+
+/* TABLE ROW */
 
 .tour-table td {
-  padding: 14px 16px;
-  border-top: 1px solid #f1f5f9;
+  padding: 4px 8px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.tour-table tr:hover {
+/* INPUTS */
+
+.tour-table input,
+.tour-table select {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: white;
+  font-size: 13px;
+}
+
+.tour-table input:focus {
+  outline: none;
+  border-color: #2563eb;
   background: #f8fafc;
 }
 
-.strong {
+/* ROW COLORING */
+
+.tour-row-singletrip td {
+  background: #dcfce7;
+}
+
+.tour-row-return td {
+  background: #e0f2fe;
+}
+
+/* TRUCK TYPE BADGE */
+
+.truck-type-cell {
   font-weight: 600;
-}
-
-/* ===== DELAY STATUS ===== */
-
-.delay {
-  font-weight: 600;
-}
-
-.delay.good {
-  color: #16a34a;
-}
-
-.delay.critical {
-  color: #dc2626;
-}
-
-.delay.neutral {
-  color: #9ca3af;
-}
-
-/* ===== EMPTY ===== */
-
-.empty-state {
-  padding: 30px;
   text-align: center;
-  color: #6b7280;
-}
-
-.cell-view {
-  cursor: pointer;
-  padding: 6px;
-}
-
-.cell-view:hover {
-  background: #f3f4f6;
-}
-
-.edit-cell {
-  display: flex;
-  gap: 6px;
-}
-
-.edit-cell input {
-  flex: 1;
-  padding: 4px;
-}
-
-.edit-actions button {
-  border: none;
-  background: #2563eb;
-  color: white;
   padding: 4px 8px;
-  cursor: pointer;
+  border-radius: 6px;
+  color: #000;
+  display: inline-block;
 }
 
-.edit-actions button:last-child {
-  background: #dc2626;
+.truck-type-singletrip {
+  background: #dcfce7;
 }
 
-.delay-critical {
-  color: #dc2626;
-  font-weight: 600;
+.truck-type-return {
+  background: #e0f2fe;
 }
 
-.delay-ok {
-  color: #16a34a;
-  font-weight: 600;
+/* CANCELLED TOUR */
+
+.tour-row-cancelled td {
+  background: #fecaca;
+  color: #7f1d1d;
+  text-decoration: line-through;
 }
 
-.cell-view {
-  cursor: pointer;
-  padding: 6px;
+.tour-cancelled-text {
+  opacity: 0.6;
+  font-style: italic;
 }
 
-.cell-view:hover {
-  background: #f3f4f6;
+/* DRAG FEEDBACK */
+
+tr[style*="opacity: 0.5"] {
+  background: #f1f5f9;
 }
 
-.edit-cell {
-  display: flex;
-  gap: 6px;
-}
+/* EMPTY */
 
-.edit-cell input {
-  flex: 1;
-  padding: 4px;
-}
-
-.edit-actions button {
-  border: none;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.edit-actions button:first-child {
-  background: #16a34a;
-  color: white;
-}
-
-.edit-actions button:last-child {
-  background: #dc2626;
-  color: white;
+.empty-day {
+  padding: 16px 20px;
+  color: #64748b;
+  font-style: italic;
 }

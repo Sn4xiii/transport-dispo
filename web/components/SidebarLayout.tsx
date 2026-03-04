@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Menu, X, Settings } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Menu, Settings, Truck} from "lucide-react";
 import "./layout.css";
 
 export default function SidebarLayout({
@@ -43,13 +43,6 @@ export default function SidebarLayout({
 
   return (
     <div className="layout">
-      {/* Overlay Mobile */}
-      {mobileOpen && (
-        <div
-          className="overlay"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
 
       {/* SIDEBAR */}
       <aside
@@ -58,19 +51,12 @@ export default function SidebarLayout({
         }`}
       >
         <div className="sidebar-header">
+          {sidebarOpen && <h3>Transport</h3>}
           <button
             className="toggle-btn"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             <Menu size={18} />
-          </button>
-          {sidebarOpen && <h2>Transport</h2>}
-
-          <button
-            className="mobile-close"
-            onClick={() => setMobileOpen(false)}
-          >
-            <X size={18} />
           </button>
         </div>
 
@@ -78,7 +64,7 @@ export default function SidebarLayout({
 
           {/* Hauptbereich */}
           <div className="nav-section">
-            {navItem("/", "Dashboard", LayoutDashboard)}
+            {navItem("/soon", "Soon", LayoutDashboard)}
           </div>
 
           {/* Planung */}
@@ -88,8 +74,8 @@ export default function SidebarLayout({
             </div>
 
             {navItem(
-              "/weeks",
-              "Wochenübersicht",
+              "/",
+              "Transportplan",
               CalendarDays
             )}
           </div>
@@ -111,12 +97,18 @@ export default function SidebarLayout({
               "Transport Spalten",
               Settings
             )}
+
+            {navItem(
+              "/admin/tours",
+              "Touren",
+              Truck
+            )}
           </div>
 
         </nav>
 
         <div className="sidebar-footer">
-          <span>Dispo v1.0</span>
+          <span>Transit v1.0 by Mike</span>
         </div>
       </aside>
 
@@ -130,7 +122,7 @@ export default function SidebarLayout({
             <Menu size={20} />
           </button>
 
-          <h1>Dispositionssystem</h1>
+          <h1>Transportplan</h1>
 
           <div className="header-actions">
             <button className="header-btn">Benutzer</button>

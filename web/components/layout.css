@@ -1,25 +1,26 @@
-/* ===== GLOBAL ===== */
+/* ========================= */
+/* ===== ROOT LAYOUT ====== */
+/* ========================= */
+
 .layout {
   display: flex;
-  height: 100vh;
-  background-color: #f4f6f9;
-  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  width: 100%;
+  background: #f4f6f9;
 }
 
-/* ===== SIDEBAR ===== */
+/* ========================= */
+/* ===== SIDEBAR ========== */
+/* ========================= */
+
 .sidebar {
+  width: 260px;
   background: linear-gradient(180deg, #1e293b, #0f172a);
   color: white;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 100;
-}
-
-.sidebar.open {
-  width: 240px;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
 }
 
 .sidebar.closed {
@@ -29,13 +30,8 @@
 .sidebar-header {
   display: flex;
   align-items: center;
+  padding: 16px;
   gap: 12px;
-  padding: 20px;
-}
-
-.sidebar-header h2 {
-  font-size: 18px;
-  margin: 0;
 }
 
 .toggle-btn,
@@ -46,89 +42,108 @@
   cursor: pointer;
 }
 
-.mobile-close {
-  margin-left: auto;
-  display: none;
+.nav {
+  flex: 1;
+  padding: 10px;
 }
 
-/* ===== NAV ===== */
-.nav {
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
+.nav-section {
+  margin-bottom: 20px;
+}
+
+.nav-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 10px 0;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  color: #cbd5e1;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 8px;
-  margin-bottom: 6px;
-  transition: 0.2s ease;
-  font-weight: 500;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.2s ease;
 }
 
 .nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: white;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-item.active {
-  background-color: #2563eb;
+  background: #2563eb;
   color: white;
 }
 
-/* ===== FOOTER ===== */
 .sidebar-footer {
-  margin-top: auto;
-  padding: 20px;
+  padding: 15px;
   font-size: 12px;
-  color: #94a3b8;
+  opacity: 0.5;
 }
 
-/* ===== MAIN ===== */
+
+/* ========================= */
+/* ===== MAIN AREA ======== */
+/* ========================= */
+
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* VERY IMPORTANT */
+  background: #f4f6f9;
 }
 
-/* ===== HEADER ===== */
 .header {
-  height: 70px;
+  height: 60px;
   background: white;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+  padding: 0 20px;
 }
 
 .header-actions {
   display: flex;
-  gap: 15px;
+  gap: 10px;
 }
 
 .header-btn {
+  background: #e5e7eb;
+  border: none;
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: white;
   cursor: pointer;
-  transition: 0.2s ease;
 }
 
-.header-btn:hover {
-  background-color: #f3f4f6;
+.content {
+  flex: 1;
+  padding: 30px;
+  overflow: auto;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  border: 1px solid #e5e7eb;
+}
+
+
+/* ========================= */
+/* ===== MOBILE =========== */
+/* ========================= */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 10;
 }
 
 .mobile-menu {
@@ -138,29 +153,13 @@
   cursor: pointer;
 }
 
-/* ===== CONTENT ===== */
-.content {
-  flex: 1;
-  padding: 40px;
-}
-
-.card {
-  background-color: white;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  min-height: 300px;
-}
-
-/* ===== MOBILE ===== */
 @media (max-width: 900px) {
   .sidebar {
     position: fixed;
     left: -260px;
     top: 0;
-    height: 100%;
-    width: 240px !important;
-    transition: 0.3s;
+    height: 100vh;
+    z-index: 20;
   }
 
   .sidebar.mobile-open {
@@ -170,38 +169,4 @@
   .mobile-menu {
     display: block;
   }
-
-  .mobile-close {
-    display: block;
-  }
-
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 50;
-  }
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 20px;
-}
-
-.nav-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.nav-section-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #9ca3af;
-  font-weight: 600;
-  margin-bottom: 4px;
-  padding-left: 4px;
 }
