@@ -1,60 +1,77 @@
-export type ColumnType =
-  | "text"
-  | "number"
-  | "datetime"
-  | "select"
-  | "delay";
+"use client";
 
-export type Tour = {
-  id: string;
-  planning_week_id: string | null;
-  planning_day_id: string | null;
-  cancelled: boolean;
-  truck_number: string | null;
-  plate: string | null;
-  truck_type_id: string | null;
-  truck_types?: {
-    id: string;
-    name: string;
-  } | null;
-  
-  planned_arrival_werk1: string | null;
-  actual_arrival_werk1: string | null;
-  planned_arrival_werk2: string | null;
-  actual_arrival_werk2: string | null;
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase-browser";
 
-  unloading_time_werk1: string | null;
-  unloading_time_werk2: string | null;
-
-  delivery_note_werk1: string | null;
-  delivery_note_werk2: string | null;
-
-  position: number | null;
-  created_at: string | null;
-};
-
-export type TourColumn = {
-  id: string;
+type Permission = {
   key: string;
-  label: string;
-  type: ColumnType;
-  required: boolean;
-  visible: boolean;
-  active: boolean;
-  position: number;
-  options?: string[] | null; // 🔥 WICHTIG
 };
 
-export type TourValue = {
-  id: string;
-  tour_id: string;
-  column_id: string;
-  value: string;
+type RolePermission = {
+  permissions: Permission;
 };
 
-export type PlanningDay = {
-  id: string;
-  planning_week_id: string;
-  date: string;       // "YYYY-MM-DD"
-  position: number;
+type Role = {
+  role_permissions: RolePermission[];
 };
+
+type ProfileQuery = {
+  role_id: string;
+  roles: Role[];
+};
+
+export function usePermissions() {
+
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+
+    async function loadPermissions() {
+
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("profiles")
+        .select(`
+          role_id,
+          roles!profiles_role_fk (
+            role_permissions (
+              permissions (
+                key
+              )
+            )
+          )
+        `)
+        .eq("id", user.id)
+        .single();
+
+      const profile = data as ProfileQuery | null;
+
+      if (!profile) return;
+
+      const keys =
+        profile.roles
+          ?.flatMap(role =>
+            role.role_permissions.map(
+              rp => rp.permissions.key
+            )
+          ) ?? [];
+
+      setPermissions(keys);
+
+    }
+
+    loadPermissions();
+
+  }, []);
+
+  function can(permission: string) {
+    return permissions.includes(permission);
+  }
+
+  return { permissions, can };
+
+}

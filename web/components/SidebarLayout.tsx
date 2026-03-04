@@ -42,9 +42,16 @@ export default function SidebarLayout({
   const pathname = usePathname();
   const { can } = usePermissions();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  /* Sidebar Zustand direkt aus localStorage laden (ESLint safe) */
+
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("sidebarOpen");
+    return saved !== null ? saved === "true" : true;
+  });
+
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [navItems,setNavItems] = useState<NavigationItem[]>([]);
+  const [navItems, setNavItems] = useState<NavigationItem[]>([]);
 
   /* Sidebar Zustand speichern */
 
@@ -52,35 +59,43 @@ export default function SidebarLayout({
     localStorage.setItem("sidebarOpen", String(sidebarOpen));
   }, [sidebarOpen]);
 
-  /* Navigation laden */
+  /* Navigation aus DB laden */
 
-  useEffect(()=>{
+  useEffect(() => {
 
-    async function loadNav(){
+    async function loadNav() {
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("navigation")
         .select("*")
         .order("section");
 
-      if(data) setNavItems(data);
+      if (error) {
+        console.error("Navigation load error:", error);
+        return;
+      }
 
+      setNavItems(data ?? []);
     }
 
     loadNav();
 
-  },[]);
+  }, []);
+
+  /* einzelnes Nav Item */
 
   const navItem = (
+    key: string,
     href: string,
     label: string,
     Icon: LucideIcon
   ) => {
 
-    const active = pathname === href;
+    const active = pathname.startsWith(href);
 
     return (
       <Link
+        key={key}
         href={href}
         className={`nav-item ${active ? "active" : ""}`}
         onClick={() => setMobileOpen(false)}
@@ -91,7 +106,9 @@ export default function SidebarLayout({
     );
   };
 
-  const renderSection = (section:string,title?:string) => {
+  /* Navigation Section */
+
+  const renderSection = (section: string, title?: string) => {
 
     const items = navItems.filter(
       item =>
@@ -99,9 +116,9 @@ export default function SidebarLayout({
         can(item.permission_key)
     );
 
-    if(items.length === 0) return null;
+    if (items.length === 0) return null;
 
-    return(
+    return (
 
       <div className="nav-section">
 
@@ -111,11 +128,12 @@ export default function SidebarLayout({
           </div>
         )}
 
-        {items.map(item=>{
+        {items.map(item => {
 
           const Icon = iconMap[item.icon] ?? Settings;
 
           return navItem(
+            item.id,
             item.path,
             item.label,
             Icon
@@ -158,11 +176,11 @@ export default function SidebarLayout({
 
           {renderSection("main")}
 
-          {renderSection("dispo","Dispo")}
+          {renderSection("dispo", "Dispo")}
 
-          {renderSection("admin","Admin")}
+          {renderSection("admin", "Admin")}
 
-          {renderSection("system","System")}
+          {renderSection("system", "System")}
 
         </nav>
 

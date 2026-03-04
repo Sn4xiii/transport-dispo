@@ -7,36 +7,37 @@ type Permission = {
   key: string;
 };
 
-type RolePermissions = {
-  role: {
-    role_permissions: {
-      permissions: Permission;
-    }[];
-  };
+type RolePermission = {
+  permissions: Permission;
 };
 
-export function usePermissions(){
+type Role = {
+  role_permissions: RolePermission[];
+};
 
-  const [permissions,setPermissions] = useState<string[]>([]);
-  const [loading,setLoading] = useState(true);
+type ProfileQuery = {
+  role_id: string;
+  roles: Role | Role[];
+};
 
-  useEffect(()=>{
+export function usePermissions() {
 
-    async function load(){
+  const [permissions, setPermissions] = useState<string[]>([]);
 
-      const { data:userData } = await supabase.auth.getUser();
+  useEffect(() => {
+
+    async function loadPermissions() {
+
+      const { data: userData } = await supabase.auth.getUser();
       const user = userData.user;
 
-      if(!user){
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
 
       const { data } = await supabase
         .from("profiles")
         .select(`
-          role,
-          roles!profiles_role_fkey (
+          role_id,
+          roles!profiles_role_fk (
             role_permissions (
               permissions (
                 key
@@ -44,33 +45,37 @@ export function usePermissions(){
             )
           )
         `)
-        .eq("id",user.id)
+        .eq("id", user.id)
         .single();
 
-      const roleData = data as unknown as RolePermissions;
+      const profile = data as ProfileQuery | null;
 
-      const keys =
-        roleData?.role?.role_permissions?.map(
+      if (!profile) return;
+
+      /* roles kann Objekt oder Array sein */
+
+      const roles = Array.isArray(profile.roles)
+        ? profile.roles
+        : [profile.roles];
+
+      const keys = roles.flatMap(role =>
+        role.role_permissions.map(
           rp => rp.permissions.key
-        ) ?? [];
+        )
+      );
 
       setPermissions(keys);
-      setLoading(false);
 
     }
 
-    load();
+    loadPermissions();
 
-  },[]);
+  }, []);
 
-  function can(permission:string){
-
-    if(permissions.includes("*")) return true;
-
+  function can(permission: string) {
     return permissions.includes(permission);
-
   }
 
-  return { permissions, can, loading };
+  return { permissions, can };
 
 }
