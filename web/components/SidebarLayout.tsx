@@ -161,7 +161,7 @@ export default function SidebarLayout({
 
         <div className="sidebar-header">
 
-          {sidebarOpen && <h3>Transport</h3>}
+          {sidebarOpen && <h3>Transitplan</h3>}
 
           <button
             className="toggle-btn"
@@ -203,13 +203,8 @@ export default function SidebarLayout({
             <Menu size={20} />
           </button>
 
-          <h1>Transportplan</h1>
+          <h1>Transportplan Pilsen & Barsinghausen</h1>
 
-          <div className="header-actions">
-            <button className="header-btn">
-              Benutzer
-            </button>
-          </div>
 
         </header>
 
