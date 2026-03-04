@@ -1,0 +1,144 @@
+.profile-container{
+  max-width:700px;
+  margin:60px auto;
+}
+
+.profile-card{
+  background:white;
+  border-radius:14px;
+  padding:32px;
+  border:1px solid #e5e7eb;
+  box-shadow:0 10px 25px rgba(0,0,0,0.05);
+}
+
+.profile-title{
+  font-size:24px;
+  font-weight:600;
+  margin-bottom:25px;
+}
+
+/* ================= FIELDS ================= */
+
+.profile-field{
+  display:flex;
+  flex-direction:column;
+  margin-bottom:18px;
+}
+
+.profile-field label{
+  font-size:14px;
+  font-weight:500;
+  color:#475569;
+  margin-bottom:6px;
+}
+
+.profile-input{
+  width:100%;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;
+  font-size:14px;
+  transition:all .15s;
+}
+
+.profile-input:focus{
+  outline:none;
+  border-color:#2563eb;
+  box-shadow:0 0 0 2px rgba(37,99,235,0.15);
+}
+
+.profile-input:disabled{
+  background:#f1f5f9;
+}
+
+/* ================= PERMISSIONS ================= */
+
+.permissions-section{
+  margin-top:30px;
+}
+
+.permissions-title{
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:12px;
+}
+
+.permissions-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+}
+
+.permission-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 8px;
+  border-radius:6px;
+  transition:background .15s;
+}
+
+.permission-item:hover{
+  background:#f1f5f9;
+}
+
+.permission-item input{
+  cursor:pointer;
+}
+
+/* ================= BUTTONS ================= */
+
+.profile-actions{
+  margin-top:30px;
+  display:flex;
+  gap:10px;
+}
+
+.btn-primary{
+  background:#2563eb;
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:500;
+  transition:all .15s;
+}
+
+.btn-primary:hover{
+  background:#1d4ed8;
+}
+
+.btn-primary:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+.btn-danger{
+  background:#ef4444;
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:500;
+  transition:all .15s;
+}
+
+.btn-danger:hover{
+  background:#dc2626;
+}
+
+/* ================= MOBILE ================= */
+
+@media (max-width:700px){
+
+  .profile-container{
+    margin:20px;
+  }
+
+  .permissions-grid{
+    grid-template-columns:1fr;
+  }
+
+}

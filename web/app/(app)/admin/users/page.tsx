@@ -135,18 +135,29 @@ export default function ProfilePage() {
 
   /* ================= CREATE USER ================= */
 
-  async function createUser() {
+  async function createUser(){
 
-    if (!newUserEmail) return;
+  if(!newUserEmail) return;
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: newUserEmail
-    });
+  const res = await fetch("/api/create-user",{
+    method:"POST",
+    body:JSON.stringify({
+      email:newUserEmail
+    })
+  });
 
-    console.log("CREATE USER ERROR:", error);
+  const data = await res.json();
 
-    setNewUserEmail("");
+  if(data.error){
+    alert(data.error);
+    return;
   }
+
+  alert(`Temporäres Passwort: ${data.temporaryPassword}`);
+
+  setNewUserEmail("");
+
+}
 
   /* ================= CHANGE ROLE ================= */
 

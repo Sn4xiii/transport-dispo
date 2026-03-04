@@ -1,59 +1,72 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
 import "./style.css";
 
-export default function LoginPage(){
+export default function LoginPage() {
 
   const router = useRouter();
 
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
-  const [error,setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  async function login(){
+  async function login(e: React.FormEvent) {
+
+    e.preventDefault();
+    setError("");
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
-    if(error){
-      setError("Login fehlgeschlagen");
-    }else{
-      router.push("/weeks");
+    if (error) {
+      setError(error.message);
+      return;
     }
 
+    /* redirect nach login */
+
+    router.push("/");
+    router.refresh();
   }
 
-  return(
+  return (
 
     <div className="login-page">
 
       <div className="login-card">
 
-        <h1>Transportplan Login</h1>
+        <h1>Transport Dispo</h1>
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-        />
+        <form onSubmit={login}>
 
-        <input
-          type="password"
-          placeholder="Passwort"
-          value={password}
-          onChange={(e)=>setPassword(e.target.value)}
-        />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <button onClick={login}>
-          Login
-        </button>
+          <input
+            type="password"
+            placeholder="Passwort"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        {error && <p>{error}</p>}
+          <button type="submit">
+            Login
+          </button>
+
+        </form>
+
+        {error && <p className="login-error">{error}</p>}
 
       </div>
 

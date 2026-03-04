@@ -3,18 +3,48 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Menu, Settings, Truck, Users} from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Menu,
+  Settings,
+  Truck,
+  Users,
+  LucideIcon
+} from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
+import { supabase } from "@/lib/supabase-browser";
 import "./layout.css";
+
+type NavigationItem = {
+  id: string;
+  label: string;
+  path: string;
+  icon: string;
+  section: string;
+  permission_key: string;
+};
+
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  CalendarDays,
+  Settings,
+  Truck,
+  Users
+};
 
 export default function SidebarLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+
   const pathname = usePathname();
+  const { can } = usePermissions();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navItems,setNavItems] = useState<NavigationItem[]>([]);
 
   /* Sidebar Zustand speichern */
 
@@ -22,11 +52,31 @@ export default function SidebarLayout({
     localStorage.setItem("sidebarOpen", String(sidebarOpen));
   }, [sidebarOpen]);
 
+  /* Navigation laden */
+
+  useEffect(()=>{
+
+    async function loadNav(){
+
+      const { data } = await supabase
+        .from("navigation")
+        .select("*")
+        .order("section");
+
+      if(data) setNavItems(data);
+
+    }
+
+    loadNav();
+
+  },[]);
+
   const navItem = (
     href: string,
     label: string,
-    Icon: React.ElementType
+    Icon: LucideIcon
   ) => {
+
     const active = pathname === href;
 
     return (
@@ -41,87 +91,93 @@ export default function SidebarLayout({
     );
   };
 
+  const renderSection = (section:string,title?:string) => {
+
+    const items = navItems.filter(
+      item =>
+        item.section === section &&
+        can(item.permission_key)
+    );
+
+    if(items.length === 0) return null;
+
+    return(
+
+      <div className="nav-section">
+
+        {title && (
+          <div className="nav-section-title">
+            {title}
+          </div>
+        )}
+
+        {items.map(item=>{
+
+          const Icon = iconMap[item.icon] ?? Settings;
+
+          return navItem(
+            item.path,
+            item.label,
+            Icon
+          );
+
+        })}
+
+      </div>
+
+    );
+
+  };
+
   return (
+
     <div className="layout">
 
       {/* SIDEBAR */}
+
       <aside
         className={`sidebar ${sidebarOpen ? "open" : "closed"} ${
           mobileOpen ? "mobile-open" : ""
         }`}
       >
+
         <div className="sidebar-header">
+
           {sidebarOpen && <h3>Transport</h3>}
+
           <button
             className="toggle-btn"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             <Menu size={18} />
           </button>
+
         </div>
 
         <nav className="nav">
 
-          {/* Hauptbereich */}
-          <div className="nav-section">
-            {navItem("/weeks", "Transportplan", LayoutDashboard)}
-          </div>
+          {renderSection("main")}
 
-          {/* Admin Bereich */}
-          <div className="nav-section">
-            <div className="nav-section-title">
-              Dispo
-            </div>
+          {renderSection("dispo","Dispo")}
 
-            {navItem(
-              "/admin/weeks",
-              "Neue Woche",
-              CalendarDays
-            )}
+          {renderSection("admin","Admin")}
 
-            {navItem(
-              "/admin/columns",
-              "Transport Spalten",
-              Settings
-            )}
-
-            {navItem(
-              "/admin/tours",
-              "Touren",
-              Truck
-            )}
-
-            <div className="nav-section-title">
-              Admin
-            </div>
-
-            {navItem(
-              "/admin/users",
-              "Users",
-              Users
-            )}
-            
-            <div className="nav-section-title">
-              System
-            </div>
-
-            {navItem(
-              "/profile/",
-              "Profile",
-              Users
-            )}
-          </div>
+          {renderSection("system","System")}
 
         </nav>
 
         <div className="sidebar-footer">
           <span>Transit v1.0 by Mike</span>
         </div>
+
       </aside>
 
       {/* MAIN */}
+
       <div className="main">
+
         <header className="header">
+
           <button
             className="mobile-menu"
             onClick={() => setMobileOpen(true)}
@@ -132,14 +188,21 @@ export default function SidebarLayout({
           <h1>Transportplan</h1>
 
           <div className="header-actions">
-            <button className="header-btn">Benutzer</button>
+            <button className="header-btn">
+              Benutzer
+            </button>
           </div>
+
         </header>
 
         <main className="content">
           <div className="card">{children}</div>
         </main>
+
       </div>
+
     </div>
+
   );
+
 }
