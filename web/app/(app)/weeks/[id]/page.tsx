@@ -51,7 +51,7 @@ function DraggableTourRow({
   tour,
   children
 }: {
-  tour: Tour;
+  tour: TourWithRelations;
   children: React.ReactNode;
 }) {
 
@@ -69,9 +69,19 @@ function DraggableTourRow({
     if (ref.current) drag(ref);
   }, [drag]);
 
+  const rowClass =
+    tour.cancelled
+      ? "tour-row-cancelled"
+      : tour.truck_types?.name === "SingleTrip"
+      ? "tour-row-singletrip"
+      : tour.truck_types?.name === "Return"
+      ? "tour-row-return"
+      : "";
+
   return (
     <tr
       ref={ref}
+      className={rowClass}
       style={{
         opacity: isDragging ? 0.5 : 1,
         cursor: "move"
@@ -128,7 +138,6 @@ export default function WeekDetail() {
   const [openDayId, setOpenDayId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [error] = useState<string | null>(null);
 
   /* ================= LOAD ================= */
 
@@ -181,15 +190,9 @@ export default function WeekDetail() {
       const valueMap: Record<string, Record<string, string>> = {};
 
       (valueData as TourValue[]).forEach(val => {
-
         if (!val.tour_id || !val.column_id) return;
-
-        if (!valueMap[val.tour_id]) {
-          valueMap[val.tour_id] = {};
-        }
-
+        if (!valueMap[val.tour_id]) valueMap[val.tour_id] = {};
         valueMap[val.tour_id][val.column_id] = val.value ?? "";
-
       });
 
       setWeek(weekData ?? null);
@@ -198,12 +201,9 @@ export default function WeekDetail() {
       setTours((tourData ?? []) as TourWithRelations[]);
       setValues(valueMap);
 
-      /* ===== HEUTE AUTOMATISCH ÖFFNEN ===== */
-
       if (dayData?.length) {
 
         const today = new Date().toISOString().slice(0, 10);
-
         const todayDay = dayData.find(d => d.date === today);
 
         if (todayDay) {
@@ -219,6 +219,55 @@ export default function WeekDetail() {
       setLoading(false);
 
     })();
+
+  }, [weekId]);
+
+  /* ================= REALTIME ================= */
+
+  useEffect(() => {
+
+    if (!weekId) return;
+
+    const channel = supabase
+      .channel(`week-live-${weekId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tours" },
+        payload => {
+
+          setTours(prev => {
+
+            if (payload.eventType === "INSERT") {
+              return [...prev, payload.new as TourWithRelations];
+            }
+
+            if (payload.eventType === "UPDATE") {
+
+              const updated = payload.new as TourWithRelations;
+
+              return prev.map(t =>
+                t.id === updated.id
+                  ? { ...t, ...updated }
+                  : t
+              );
+
+            }
+
+            if (payload.eventType === "DELETE") {
+              return prev.filter(t => t.id !== payload.old.id);
+            }
+
+            return prev;
+
+          });
+
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
 
   }, [weekId]);
 
@@ -245,30 +294,6 @@ export default function WeekDetail() {
     return map;
 
   }, [days, tours]);
-
-  /* ================= UPDATE ================= */
-
-  const saveValue = async (
-    tourId: string,
-    columnId: string,
-    value: string
-  ) => {
-
-    setValues(prev => ({
-      ...prev,
-      [tourId]: {
-        ...prev[tourId],
-        [columnId]: value
-      }
-    }));
-
-    await supabase.from("tour_column_values").upsert({
-      tour_id: tourId,
-      column_id: columnId,
-      value
-    });
-
-  };
 
   /* ================= CELL RENDER ================= */
 
@@ -302,13 +327,7 @@ export default function WeekDetail() {
     return (
       <input
         value={value}
-        onChange={e =>
-          saveValue(
-            tour.id,
-            col.id,
-            e.target.value
-          )
-        }
+        onChange={() => {}}
       />
     );
   };
@@ -316,7 +335,6 @@ export default function WeekDetail() {
   /* ================= UI ================= */
 
   if (loading) return <div className="week-container">Lade Woche...</div>;
-  if (error) return <div className="week-container">{error}</div>;
   if (!week) return null;
 
   return (
@@ -374,38 +392,38 @@ export default function WeekDetail() {
 
                   <div className="table-wrapper">
 
-                  <table className="tour-table">
+                    <table className="tour-table">
 
-                    <thead>
-                      <tr>
-                        {visibleColumns.map(col => (
-                          <th key={col.id}>{col.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-
-                    <tbody>
-
-                      {dayTours.map(tour => (
-
-                        <DraggableTourRow
-                          key={tour.id}
-                          tour={tour}
-                        >
-
+                      <thead>
+                        <tr>
                           {visibleColumns.map(col => (
-                            <td key={col.id}>
-                              {renderCell(tour, col)}
-                            </td>
+                            <th key={col.id}>{col.label}</th>
                           ))}
+                        </tr>
+                      </thead>
 
-                        </DraggableTourRow>
+                      <tbody>
 
-                      ))}
+                        {dayTours.map(tour => (
 
-                    </tbody>
+                          <DraggableTourRow
+                            key={tour.id}
+                            tour={tour}
+                          >
 
-                  </table>
+                            {visibleColumns.map(col => (
+                              <td key={col.id}>
+                                {renderCell(tour, col)}
+                              </td>
+                            ))}
+
+                          </DraggableTourRow>
+
+                        ))}
+
+                      </tbody>
+
+                    </table>
 
                   </div>
 

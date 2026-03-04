@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Menu, Settings, Truck} from "lucide-react";
+import { LayoutDashboard, CalendarDays, Menu, Settings, Truck, Users} from "lucide-react";
 import "./layout.css";
 
 export default function SidebarLayout({
@@ -64,26 +64,13 @@ export default function SidebarLayout({
 
           {/* Hauptbereich */}
           <div className="nav-section">
-            {navItem("/soon", "Soon", LayoutDashboard)}
-          </div>
-
-          {/* Planung */}
-          <div className="nav-section">
-            <div className="nav-section-title">
-              Planung
-            </div>
-
-            {navItem(
-              "/",
-              "Transportplan",
-              CalendarDays
-            )}
+            {navItem("/weeks", "Transportplan", LayoutDashboard)}
           </div>
 
           {/* Admin Bereich */}
           <div className="nav-section">
             <div className="nav-section-title">
-              Admin
+              Dispo
             </div>
 
             {navItem(
@@ -102,6 +89,26 @@ export default function SidebarLayout({
               "/admin/tours",
               "Touren",
               Truck
+            )}
+
+            <div className="nav-section-title">
+              Admin
+            </div>
+
+            {navItem(
+              "/admin/users",
+              "Users",
+              Users
+            )}
+            
+            <div className="nav-section-title">
+              System
+            </div>
+
+            {navItem(
+              "/profile/",
+              "Profile",
+              Users
             )}
           </div>
 
