@@ -9,12 +9,12 @@ import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import "./week.css";
 
+/* ================= TYPES ================= */
+
 type PlanningWeek = {
   id: string;
   year: number;
   week_number: number;
-  start_date: string;
-  end_date: string;
 };
 
 type PlanningDay = {
@@ -24,14 +24,19 @@ type PlanningDay = {
   position: number;
 };
 
+type ColumnGroup = {
+  id: string;
+  name: string;
+  order_index: number;
+  is_visible: boolean;
+};
+
 type DragItem = {
   tourId: string;
 };
 
 type TourWithRelations = Tour & {
   cancelled?: boolean;
-  truck_number?: string | null;
-  planned_arrival_werk1?: string | null;
   truck_types?: {
     id: string;
     name: string;
@@ -39,11 +44,6 @@ type TourWithRelations = Tour & {
 };
 
 const DND_TYPE = "TOUR_ROW";
-
-function toDatetimeLocal(value: string | null | undefined) {
-  if (!value) return "";
-  return value.slice(0, 16);
-}
 
 /* ================= DRAG ROW ================= */
 
@@ -54,7 +54,6 @@ function DraggableTourRow({
   tour: TourWithRelations;
   children: React.ReactNode;
 }) {
-
   const ref = useRef<HTMLTableRowElement>(null);
 
   const [{ isDragging }, drag] = useDrag(() => ({
@@ -69,21 +68,11 @@ function DraggableTourRow({
     if (ref.current) drag(ref);
   }, [drag]);
 
-  const rowClass =
-    tour.cancelled
-      ? "tour-row-cancelled"
-      : tour.truck_types?.name === "SingleTrip"
-      ? "tour-row-singletrip"
-      : tour.truck_types?.name === "Return"
-      ? "tour-row-return"
-      : "";
-
   return (
     <tr
       ref={ref}
-      className={rowClass}
       style={{
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.4 : 1,
         cursor: "move"
       }}
     >
@@ -100,10 +89,9 @@ function DayDropZone({
   children
 }: {
   dayId: string;
-  onDropTour: (tourId: string, targetDayId: string) => void;
+  onDropTour: (tourId: string, dayId: string) => void;
   children: React.ReactNode;
 }) {
-
   const ref = useRef<HTMLDivElement>(null);
 
   const [, drop] = useDrop(() => ({
@@ -131,12 +119,11 @@ export default function WeekDetail() {
   const [days, setDays] = useState<PlanningDay[]>([]);
   const [tours, setTours] = useState<TourWithRelations[]>([]);
   const [columns, setColumns] = useState<TourColumn[]>([]);
+  const [groups, setGroups] = useState<ColumnGroup[]>([]);
   const [values, setValues] = useState<Record<string, Record<string, string>>>({});
-
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
-  const [openDayId, setOpenDayId] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ================= */
@@ -145,7 +132,7 @@ export default function WeekDetail() {
 
     if (!weekId) return;
 
-    (async () => {
+    async function load() {
 
       const { data: weekData } = await supabase
         .from("planning_weeks")
@@ -159,11 +146,17 @@ export default function WeekDetail() {
         .eq("planning_week_id", weekId)
         .order("date");
 
+      const { data: groupData } = await supabase
+        .from("column_groups")
+        .select("*")
+        .eq("is_visible", true)
+        .order("order_index");
+
       const { data: columnData } = await supabase
         .from("tour_columns")
         .select("*")
-        .eq("active", true)
-        .order("position");
+        .eq("is_visible", true)
+        .order("order_index");
 
       const dayIds = (dayData ?? []).map(d => d.id);
 
@@ -173,7 +166,6 @@ export default function WeekDetail() {
               .from("tours")
               .select(`*, truck_types (id,name)`)
               .in("planning_day_id", dayIds)
-              .order("planning_day_id")
               .order("position")
           : { data: [] };
 
@@ -197,28 +189,19 @@ export default function WeekDetail() {
 
       setWeek(weekData ?? null);
       setDays(dayData ?? []);
+      setGroups(groupData ?? []);
       setColumns(columnData ?? []);
       setTours((tourData ?? []) as TourWithRelations[]);
       setValues(valueMap);
 
       if (dayData?.length) {
-
-        const today = new Date().toISOString().slice(0, 10);
-        const todayDay = dayData.find(d => d.date === today);
-
-        if (todayDay) {
-          setSelectedDayId(todayDay.id);
-          setOpenDayId(todayDay.id);
-        } else {
-          setSelectedDayId(dayData[0].id);
-          setOpenDayId(dayData[0].id);
-        }
-
+        setSelectedDayId(dayData[0].id);
       }
 
       setLoading(false);
+    }
 
-    })();
+    load();
 
   }, [weekId]);
 
@@ -229,7 +212,7 @@ export default function WeekDetail() {
     if (!weekId) return;
 
     const channel = supabase
-      .channel(`week-live-${weekId}`)
+      .channel(`week-${weekId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tours" },
@@ -242,15 +225,11 @@ export default function WeekDetail() {
             }
 
             if (payload.eventType === "UPDATE") {
-
-              const updated = payload.new as TourWithRelations;
-
               return prev.map(t =>
-                t.id === updated.id
-                  ? { ...t, ...updated }
+                t.id === payload.new.id
+                  ? { ...t, ...(payload.new as TourWithRelations) }
                   : t
               );
-
             }
 
             if (payload.eventType === "DELETE") {
@@ -271,12 +250,40 @@ export default function WeekDetail() {
 
   }, [weekId]);
 
+  /* ================= DRAG DROP ================= */
+
+  async function moveTour(tourId: string, dayId: string) {
+
+    await supabase
+      .from("tours")
+      .update({ planning_day_id: dayId })
+      .eq("id", tourId);
+
+  }
+
   /* ================= DERIVED ================= */
 
   const visibleColumns = useMemo(
     () => columns.filter(c => c.visible),
     [columns]
   );
+
+  const columnsByGroup = useMemo(() => {
+
+    const map: Record<string, TourColumn[]> = {};
+
+    groups.forEach(g => {
+      map[g.id] = [];
+    });
+
+    visibleColumns.forEach(col => {
+      if (!col.column_group_id) return;
+      map[col.column_group_id]?.push(col);
+    });
+
+    return map;
+
+  }, [visibleColumns, groups]);
 
   const toursByDay = useMemo(() => {
 
@@ -295,49 +302,30 @@ export default function WeekDetail() {
 
   }, [days, tours]);
 
-  /* ================= CELL RENDER ================= */
+  /* ================= CELL ================= */
 
-  const renderCell = (tour: TourWithRelations, col: TourColumn) => {
+  function renderCell(tour: TourWithRelations, col: TourColumn) {
 
     if (tour.cancelled) {
       return <span className="tour-cancelled-text">storniert</span>;
     }
 
-    switch (col.key) {
-
-      case "truck_number":
-        return <input value={tour.truck_number ?? ""} readOnly />;
-
-      case "truck_type_id":
-        return <div>{tour.truck_types?.name ?? "-"}</div>;
-
-      case "planned_arrival_werk1":
-        return (
-          <input
-            type="datetime-local"
-            value={toDatetimeLocal(tour.planned_arrival_werk1)}
-            readOnly
-          />
-        );
-
-    }
-
     const value = values[tour.id]?.[col.id] ?? "";
 
-    return (
-      <input
-        value={value}
-        onChange={() => {}}
-      />
-    );
-  };
+    return <input value={value} readOnly />;
+
+  }
 
   /* ================= UI ================= */
 
-  if (loading) return <div className="week-container">Lade Woche...</div>;
+  if (loading) {
+    return <div className="week-container">Lade Woche...</div>;
+  }
+
   if (!week) return null;
 
   return (
+
     <DndProvider backend={HTML5Backend}>
 
       <div className="week-container">
@@ -356,80 +344,100 @@ export default function WeekDetail() {
         {days.map(day => {
 
           const dayTours = toursByDay[day.id] ?? [];
-          const isOpen = openDayId === day.id;
 
           return (
+
             <div key={day.id} className="day-card">
 
-              <div
-                className="day-header"
-                onClick={() => {
-                  setOpenDayId(isOpen ? null : day.id);
-                  setSelectedDayId(day.id);
-                }}
-              >
+              <div className="day-header">
 
-                <div>
-                  {new Date(day.date).toLocaleDateString("de-DE", {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "2-digit"
-                  })}
-                </div>
+                {new Date(day.date).toLocaleDateString("de-DE", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "2-digit"
+                })}
 
-                <div className="day-count">
+                <span className="day-count">
                   {dayTours.length}
-                </div>
+                </span>
 
               </div>
 
-              {isOpen && (
+              <DayDropZone
+                dayId={day.id}
+                onDropTour={moveTour}
+              >
 
-                <DayDropZone
-                  dayId={day.id}
-                  onDropTour={() => {}}
-                >
+                {groups.map(group => {
 
-                  <div className="table-wrapper">
+                  const groupColumns = columnsByGroup[group.id] ?? [];
+                  if (!groupColumns.length) return null;
 
-                    <table className="tour-table">
+                  const isOpen = openGroups.includes(group.id);
 
-                      <thead>
-                        <tr>
-                          {visibleColumns.map(col => (
-                            <th key={col.id}>{col.label}</th>
-                          ))}
-                        </tr>
-                      </thead>
+                  return (
 
-                      <tbody>
+                    <div key={group.id} className="column-group">
 
-                        {dayTours.map(tour => (
+                      <div
+                        className="group-header"
+                        onClick={() => {
 
-                          <DraggableTourRow
-                            key={tour.id}
-                            tour={tour}
-                          >
+                          setOpenGroups(prev =>
+                            prev.includes(group.id)
+                              ? prev.filter(g => g !== group.id)
+                              : [...prev, group.id]
+                          );
 
-                            {visibleColumns.map(col => (
-                              <td key={col.id}>
-                                {renderCell(tour, col)}
-                              </td>
+                        }}
+                      >
+                        {isOpen ? "▼" : "▶"} {group.name}
+                      </div>
+
+                      {isOpen && (
+
+                        <table className="tour-table">
+
+                          <thead>
+                            <tr>
+                              {groupColumns.map(col => (
+                                <th key={col.id}>{col.label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+
+                          <tbody>
+
+                            {dayTours.map(tour => (
+
+                              <DraggableTourRow
+                                key={tour.id}
+                                tour={tour}
+                              >
+
+                                {groupColumns.map(col => (
+                                  <td key={col.id}>
+                                    {renderCell(tour, col)}
+                                  </td>
+                                ))}
+
+                              </DraggableTourRow>
+
                             ))}
 
-                          </DraggableTourRow>
+                          </tbody>
 
-                        ))}
+                        </table>
 
-                      </tbody>
+                      )}
 
-                    </table>
+                    </div>
 
-                  </div>
+                  );
 
-                </DayDropZone>
+                })}
 
-              )}
+              </DayDropZone>
 
             </div>
 
@@ -448,5 +456,7 @@ export default function WeekDetail() {
       </div>
 
     </DndProvider>
+
   );
+
 }
