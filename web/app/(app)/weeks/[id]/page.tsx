@@ -9,6 +9,8 @@ import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import "./week.css";
 
+/* ================= TYPES ================= */
+
 type PlanningWeek = {
   id: string;
   year: number;
@@ -22,6 +24,13 @@ type PlanningDay = {
   planning_week_id: string;
   date: string;
   position: number;
+};
+
+type ColumnGroup = {
+  id: string;
+  name: string;
+  order_index: number;
+  is_visible: boolean;
 };
 
 type DragItem = {
@@ -39,6 +48,8 @@ type TourWithRelations = Tour & {
 };
 
 const DND_TYPE = "TOUR_ROW";
+
+/* ================= HELPERS ================= */
 
 function toDatetimeLocal(value: string | null | undefined) {
   if (!value) return "";
@@ -129,8 +140,9 @@ export default function WeekDetail() {
 
   const [week, setWeek] = useState<PlanningWeek | null>(null);
   const [days, setDays] = useState<PlanningDay[]>([]);
-  const [tours, setTours] = useState<TourWithRelations[]>([]);
   const [columns, setColumns] = useState<TourColumn[]>([]);
+  const [groups, setGroups] = useState<ColumnGroup[]>([]);
+  const [tours, setTours] = useState<TourWithRelations[]>([]);
   const [values, setValues] = useState<Record<string, Record<string, string>>>({});
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -159,11 +171,17 @@ export default function WeekDetail() {
         .eq("planning_week_id", weekId)
         .order("date");
 
+      const { data: groupData } = await supabase
+        .from("column_groups")
+        .select("*")
+        .eq("is_visible", true)
+        .order("order_index");
+
       const { data: columnData } = await supabase
         .from("tour_columns")
         .select("*")
-        .eq("active", true)
-        .order("position");
+        .eq("is_visible", true)
+        .order("order_index");
 
       const dayIds = (dayData ?? []).map(d => d.id);
 
@@ -197,6 +215,7 @@ export default function WeekDetail() {
 
       setWeek(weekData ?? null);
       setDays(dayData ?? []);
+      setGroups(groupData ?? []);
       setColumns(columnData ?? []);
       setTours((tourData ?? []) as TourWithRelations[]);
       setValues(valueMap);
@@ -274,9 +293,26 @@ export default function WeekDetail() {
   /* ================= DERIVED ================= */
 
   const visibleColumns = useMemo(
-    () => columns.filter(c => c.visible),
+    () => columns.filter(c => c.is_visible),
     [columns]
   );
+
+  const columnsByGroup = useMemo(() => {
+
+    const map: Record<string, TourColumn[]> = {};
+
+    groups.forEach(g => {
+      map[g.id] = [];
+    });
+
+    visibleColumns.forEach(col => {
+      if (!col.column_group_id) return;
+      map[col.column_group_id]?.push(col);
+    });
+
+    return map;
+
+  }, [visibleColumns, groups]);
 
   const toursByDay = useMemo(() => {
 
@@ -392,38 +428,55 @@ export default function WeekDetail() {
 
                   <div className="table-wrapper">
 
-                    <table className="tour-table">
+                    {groups.map(group => {
 
-                      <thead>
-                        <tr>
-                          {visibleColumns.map(col => (
-                            <th key={col.id}>{col.label}</th>
-                          ))}
-                        </tr>
-                      </thead>
+                      const groupColumns = columnsByGroup[group.id] ?? [];
+                      if (!groupColumns.length) return null;
 
-                      <tbody>
+                      return (
 
-                        {dayTours.map(tour => (
+                        <table key={group.id} className="tour-table">
 
-                          <DraggableTourRow
-                            key={tour.id}
-                            tour={tour}
-                          >
+                          <thead>
+                            <tr className="column-group-row">
+                              <th colSpan={groupColumns.length}>
+                                {group.name}
+                              </th>
+                            </tr>
 
-                            {visibleColumns.map(col => (
-                              <td key={col.id}>
-                                {renderCell(tour, col)}
-                              </td>
+                            <tr>
+                              {groupColumns.map(col => (
+                                <th key={col.id}>{col.label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+
+                          <tbody>
+
+                            {dayTours.map(tour => (
+
+                              <DraggableTourRow
+                                key={tour.id}
+                                tour={tour}
+                              >
+
+                                {groupColumns.map(col => (
+                                  <td key={col.id}>
+                                    {renderCell(tour, col)}
+                                  </td>
+                                ))}
+
+                              </DraggableTourRow>
+
                             ))}
 
-                          </DraggableTourRow>
+                          </tbody>
 
-                        ))}
+                        </table>
 
-                      </tbody>
+                      );
 
-                    </table>
+                    })}
 
                   </div>
 

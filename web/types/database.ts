@@ -15,6 +15,7 @@ export type TourColumn = {
   visible: boolean
   position?: number
   created_at?: string
+  is_visible: boolean
   column_group_id: string
 }
 
