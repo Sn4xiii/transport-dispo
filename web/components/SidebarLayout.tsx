@@ -187,17 +187,16 @@ export default function SidebarLayout({
 
         <nav className="nav">
           {renderSection("main")}
-
           {renderSection("dispo", "Dispo")}
-
           {renderSection("admin", "Admin")}
-
           {renderSection("system", "System")}
+        </nav>
 
+        <div className="sidebar-logout">
           <button className="logout-button" onClick={handleLogout}>
             Logout
           </button>
-        </nav>
+        </div>
 
         <div className="sidebar-footer">
           <span>Transit v1.0 by Mike</span>

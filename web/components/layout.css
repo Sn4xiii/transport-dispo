@@ -172,15 +172,15 @@
 }
 
 .logout-button {
-  margin-top: 20px;
-  padding: 8px 12px;
-  border: none;
-  background: #e53935;
+  width: 100%;
+  padding: 10px;
+  background: #ef4444;
   color: white;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  border-radius: 4px;
 }
 
 .logout-button:hover {
-  background: #c62828;
+  background: #dc2626;
 }
