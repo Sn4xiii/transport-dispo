@@ -20,19 +20,17 @@ type Role = {
   name: string;
 };
 
-type ColumnGroup = {
+type Permission = {
   id: string;
-  name: string;
-  order_index: number;
-  is_visible: boolean;
+  key: string;
+  label: string | null;
+  description: string | null;
 };
 
-type TourColumn = {
-  id: string;
-  label: string;
-  column_group_id: string;
-  order_index: number;
-  is_visible: boolean;
+type RolePermission = {
+  role_id: string;
+  permission_id: string;
+  permissions: Permission;
 };
 
 /* ================= PAGE ================= */
@@ -40,22 +38,19 @@ type TourColumn = {
 export default function AdminPage(){
 
   const [tab,setTab] =
-    useState<"users"|"roles"|"columns">("users");
+    useState<"users"|"roles"|"permissions">("users");
 
   const [users,setUsers] = useState<Profile[]>([]);
   const [roles,setRoles] = useState<Role[]>([]);
-  const [columnGroups,setColumnGroups] = useState<ColumnGroup[]>([]);
-  const [columns,setColumns] = useState<TourColumn[]>([]);
+  const [permissions,setPermissions] = useState<Permission[]>([]);
+  const [rolePermissions,setRolePermissions] =
+    useState<RolePermission[]>([]);
 
   const [search,setSearch] = useState("");
   const [loading,setLoading] = useState(true);
 
   const [newEmail,setNewEmail] = useState("");
   const [newRole,setNewRole] = useState("");
-
-  const [newGroup,setNewGroup] = useState("");
-  const [newColumn,setNewColumn] = useState("");
-  const [selectedGroup,setSelectedGroup] = useState("");
 
   /* ================= LOAD ================= */
 
@@ -75,21 +70,21 @@ export default function AdminPage(){
 
       if(rolesData) setRoles(rolesData);
 
-      const { data:groupsData } =
+      const { data:permissionsData } =
+        await supabase.from("permissions").select("*");
+
+      if(permissionsData) setPermissions(permissionsData);
+
+      const { data:rpData } =
         await supabase
-          .from("column_groups")
-          .select("*")
-          .order("order_index");
+          .from("role_permissions")
+          .select(`
+            role_id,
+            permission_id,
+            permissions (*)
+          `);
 
-      if(groupsData) setColumnGroups(groupsData);
-
-      const { data:columnsData } =
-        await supabase
-          .from("tour_columns")
-          .select("*")
-          .order("order_index");
-
-      if(columnsData) setColumns(columnsData);
+      if(rpData) setRolePermissions(rpData);
 
       setLoading(false);
 
@@ -207,68 +202,62 @@ export default function AdminPage(){
 
   }
 
-  /* ================= COLUMN GROUP CREATE ================= */
+  /* ================= PERMISSION TOGGLE ================= */
 
-  async function createGroup(){
+  async function togglePermission(roleId:string,permission:Permission){
 
-    if(!newGroup) return;
+    const exists = rolePermissions.find(
+      rp =>
+        rp.role_id === roleId &&
+        rp.permission_id === permission.id
+    );
 
-    const { data } =
+    if(exists){
+
       await supabase
-        .from("column_groups")
-        .insert({
-          name:newGroup,
-          order_index:columnGroups.length + 1,
-          is_visible:true
-        })
-        .select()
-        .single();
+        .from("role_permissions")
+        .delete()
+        .eq("role_id",roleId)
+        .eq("permission_id",permission.id);
 
-    if(data){
-      setColumnGroups(prev=>[...prev,data]);
-      setNewGroup("");
+      setRolePermissions(prev =>
+        prev.filter(
+          rp =>
+            !(rp.role_id === roleId &&
+              rp.permission_id === permission.id)
+        )
+      );
+
+    }else{
+
+      await supabase
+        .from("role_permissions")
+        .insert({
+          role_id:roleId,
+          permission_id:permission.id
+        });
+
+      setRolePermissions(prev => [
+        ...prev,
+        {
+          role_id:roleId,
+          permission_id:permission.id,
+          permissions:permission
+        }
+      ]);
+
     }
 
   }
 
-  /* ================= COLUMN CREATE ================= */
+  /* ================= CHECK PERMISSION ================= */
 
-  async function createColumn(){
+  function hasPermission(roleId:string,permissionId:string){
 
-    if(!newColumn || !selectedGroup) return;
-
-    const { data } =
-      await supabase
-        .from("tour_columns")
-        .insert({
-          label:newColumn,
-          column_group_id:selectedGroup,
-          order_index:columns.length + 1,
-          is_visible:true
-        })
-        .select()
-        .single();
-
-    if(data){
-      setColumns(prev=>[...prev,data]);
-      setNewColumn("");
-    }
-
-  }
-
-  /* ================= COLUMN VISIBILITY ================= */
-
-  async function toggleColumn(id:string,visible:boolean){
-
-    await supabase
-      .from("tour_columns")
-      .update({ is_visible:!visible })
-      .eq("id",id);
-
-    setColumns(prev =>
-      prev.map(c =>
-        c.id===id ? {...c,is_visible:!visible} : c
-      )
+    return rolePermissions.some(
+      rp =>
+        rp.role_id === roleId &&
+        rp.permission_id === permissionId
     );
 
   }
@@ -300,10 +289,10 @@ export default function AdminPage(){
         </button>
 
         <button
-          className={tab==="columns" ? "active":""}
-          onClick={()=>setTab("columns")}
+          className={tab==="permissions" ? "active":""}
+          onClick={()=>setTab("permissions")}
         >
-          Columns
+          Permissions
         </button>
 
       </div>
@@ -473,97 +462,63 @@ export default function AdminPage(){
 
       )}
 
-      {/* ================= COLUMNS ================= */}
+      {/* ================= PERMISSIONS ================= */}
 
-      {tab==="columns" && (
+      {tab==="permissions" && (
 
         <div>
 
-          <h2>Column Groups</h2>
+          {roles.map(role=>(
 
-          <div className="admin-toolbar">
+            <div key={role.id} className="permission-role">
 
-            <input
-              placeholder="New Group"
-              value={newGroup}
-              onChange={e=>setNewGroup(e.target.value)}
-            />
+              <h3>{role.name}</h3>
 
-            <button
-              className="btn-primary"
-              onClick={createGroup}
-            >
-              Create Group
-            </button>
+              <div className="permission-grid">
 
-          </div>
+                {permissions.map(permission=>(
 
-          <ul className="admin-roles">
+                  <label
+                    key={permission.id}
+                    className="permission-item"
+                  >
 
-            {columnGroups.map(g=>(
+                    <input
+                      type="checkbox"
+                      checked={
+                        hasPermission(
+                          role.id,
+                          permission.id
+                        )
+                      }
+                      onChange={()=>
+                        togglePermission(role.id,permission)
+                      }
+                    />
 
-              <li key={g.id}>
-                {g.name}
-              </li>
+                    <div className="permission-text">
 
-            ))}
+                      {permission.description && (
+                      <span className="permission-desc">
+                          {permission.description}
+                        </span>
+                      )}
 
-          </ul>
+                      <span className="permission-label">
+                        {permission.label || permission.key}
+                      </span>
 
-          <h2 style={{marginTop:40}}>Columns</h2>
+                    </div>
 
-          <div className="admin-toolbar">
+                  </label>
 
-            <input
-              placeholder="Column Label"
-              value={newColumn}
-              onChange={e=>setNewColumn(e.target.value)}
-            />
+                ))}
 
-            <select
-              value={selectedGroup}
-              onChange={e=>setSelectedGroup(e.target.value)}
-            >
+              </div>
 
-              <option value="">Select Group</option>
+            </div>
 
-              {columnGroups.map(g=>(
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-
-            </select>
-
-            <button
-              className="btn-primary"
-              onClick={createColumn}
-            >
-              Create Column
-            </button>
-
-          </div>
-
-          <ul className="admin-roles">
-
-            {columns.map(c=>(
-
-              <li key={c.id}>
-
-                {c.label}
-
-                <button
-                  className="btn-primary"
-                  onClick={()=>toggleColumn(c.id,c.is_visible)}
-                >
-                  {c.is_visible ? "Hide" : "Show"}
-                </button>
-
-              </li>
-
-            ))}
-
-          </ul>
+          ))}
 
         </div>
 
