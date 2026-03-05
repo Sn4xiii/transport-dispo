@@ -12,11 +12,17 @@ export type TourColumn = {
   label: string
   key: string
   type: string
-  visible: boolean
   position?: number
   created_at?: string
   is_visible: boolean
   column_group_id: string
+}
+
+export type ColumnGroup = {
+  id: string
+  name: string
+  position: number
+  is_visible: boolean
 }
 
 export type TourValue = {

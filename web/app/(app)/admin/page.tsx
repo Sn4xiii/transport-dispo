@@ -36,7 +36,7 @@ type RolePermission = {
 type ColumnGroup = {
   id: string
   name: string
-  order_index: number
+  position: number
   is_visible: boolean
 }
 
@@ -44,7 +44,7 @@ type TourColumn = {
   id: string
   label: string
   column_group_id: string
-  order_index: number
+  position: number
   is_visible: boolean
 }
 
@@ -112,7 +112,7 @@ export default function AdminPage(){
         await supabase
           .from("column_groups")
           .select("*")
-          .order("order_index")
+          .order("position")
 
       if(groupsData) setColumnGroups(groupsData)
 
@@ -120,7 +120,7 @@ export default function AdminPage(){
         await supabase
           .from("tour_columns")
           .select("*")
-          .order("order_index")
+          .order("position")
 
       if(columnsData) setColumns(columnsData)
 
@@ -309,7 +309,7 @@ export default function AdminPage(){
         .from("column_groups")
         .insert({
           name:newGroup,
-          order_index:columnGroups.length + 1,
+          position:columnGroups.length + 1,
           is_visible:true
         })
         .select()
@@ -334,7 +334,7 @@ export default function AdminPage(){
         .insert({
           label:newColumn,
           column_group_id:selectedGroup,
-          order_index:columns.length + 1,
+          position:columns.length + 1,
           is_visible:true
         })
         .select()
