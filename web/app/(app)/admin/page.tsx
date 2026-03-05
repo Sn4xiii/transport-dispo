@@ -437,7 +437,7 @@ export default function AdminPage(){
 
           </div>
 
-          <ul>
+          <ul className="admin-roles">
 
             {roles.map(role=>(
 
@@ -498,15 +498,15 @@ export default function AdminPage(){
 
                     <div className="permission-text">
 
-                      <span className="permission-label">
-                        {permission.label || permission.key}
-                      </span>
-
                       {permission.description && (
-                        <span className="permission-desc">
+                      <span className="permission-desc">
                           {permission.description}
                         </span>
                       )}
+
+                      <span className="permission-label">
+                        {permission.label || permission.key}
+                      </span>
 
                     </div>
 

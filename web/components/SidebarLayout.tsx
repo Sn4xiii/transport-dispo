@@ -42,12 +42,16 @@ export default function SidebarLayout({
   const pathname = usePathname();
   const { can } = usePermissions();
 
-  /* Sidebar Zustand direkt aus localStorage laden (ESLint safe) */
+  /* Sidebar Zustand (SSR-safe) */
 
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
+
     const saved = localStorage.getItem("sidebarOpen");
-    return saved !== null ? saved === "true" : true;
+
+    if (saved === null) return true;
+
+    return saved === "true";
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -76,6 +80,7 @@ export default function SidebarLayout({
       }
 
       setNavItems(data ?? []);
+
     }
 
     loadNav();
@@ -204,7 +209,6 @@ export default function SidebarLayout({
           </button>
 
           <h1>Transportplan Pilsen & Barsinghausen</h1>
-
 
         </header>
 

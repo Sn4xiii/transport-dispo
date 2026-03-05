@@ -1,42 +1,42 @@
 /* ================= LAYOUT ================= */
 
 .admin-container{
-  max-width:1280px;
+  max-width:1300px;
   margin:auto;
-  padding:32px;
+  padding:40px 32px;
 }
 
 .admin-title{
   font-size:30px;
   font-weight:600;
-  margin-bottom:28px;
+  margin-bottom:30px;
   color:#111827;
 }
+
 
 /* ================= TABS ================= */
 
 .admin-tabs{
   display:flex;
-  gap:8px;
-  margin-bottom:28px;
+  gap:10px;
+  margin-bottom:32px;
   border-bottom:1px solid #e5e7eb;
-  padding-bottom:10px;
+  padding-bottom:14px;
 }
 
 .admin-tabs button{
-  padding:8px 14px;
-  border-radius:8px;
+  padding:9px 16px;
+  border-radius:10px;
   border:none;
-  background:transparent;
-  color:#6b7280;
+  background:#f3f4f6;
+  color:#374151;
   cursor:pointer;
   font-weight:500;
   transition:all .15s ease;
 }
 
 .admin-tabs button:hover{
-  background:#f3f4f6;
-  color:#111827;
+  background:#e5e7eb;
 }
 
 .admin-tabs button.active{
@@ -44,33 +44,34 @@
   color:white;
 }
 
+
 /* ================= CARD ================= */
 
 .admin-card{
   background:white;
-  border-radius:12px;
-  padding:22px;
+  border-radius:14px;
+  padding:26px;
   border:1px solid #e5e7eb;
-  box-shadow:0 8px 30px rgba(0,0,0,0.04);
+  box-shadow:0 10px 35px rgba(0,0,0,0.05);
 }
+
 
 /* ================= TOOLBAR ================= */
 
 .admin-toolbar{
   display:flex;
   gap:12px;
-  margin-bottom:20px;
+  margin-bottom:24px;
   flex-wrap:wrap;
 }
 
 .admin-toolbar input{
-  padding:10px 12px;
-  border-radius:8px;
+  padding:11px 13px;
+  border-radius:10px;
   border:1px solid #e5e7eb;
-  min-width:200px;
+  min-width:220px;
   font-size:14px;
   background:#fafafa;
-  transition:border .15s ease;
 }
 
 .admin-toolbar input:focus{
@@ -79,18 +80,19 @@
   background:white;
 }
 
+
 /* ================= BUTTONS ================= */
 
 .btn-primary{
-  padding:9px 14px;
-  border-radius:8px;
+  padding:10px 16px;
+  border-radius:10px;
   border:none;
   background:#2563eb;
   color:white;
   cursor:pointer;
   font-weight:500;
   font-size:14px;
-  transition:all .15s ease;
+  transition:.15s;
 }
 
 .btn-primary:hover{
@@ -105,12 +107,12 @@
   color:white;
   cursor:pointer;
   font-size:13px;
-  transition:all .15s ease;
 }
 
 .btn-danger:hover{
   background:#dc2626;
 }
+
 
 /* ================= TABLE ================= */
 
@@ -120,7 +122,7 @@
   border-spacing:0;
   background:white;
   border:1px solid #e5e7eb;
-  border-radius:12px;
+  border-radius:14px;
   overflow:hidden;
 }
 
@@ -130,15 +132,15 @@
 
 .admin-table th{
   text-align:left;
-  padding:14px;
-  font-size:13px;
+  padding:15px;
+  font-size:12px;
   font-weight:600;
   color:#6b7280;
   border-bottom:1px solid #e5e7eb;
 }
 
 .admin-table td{
-  padding:12px;
+  padding:13px;
   border-bottom:1px solid #f1f5f9;
 }
 
@@ -150,16 +152,16 @@
   background:#fafafa;
 }
 
+
 /* ================= INPUTS ================= */
 
 .admin-input{
   width:100%;
-  padding:7px 10px;
-  border-radius:7px;
+  padding:8px 10px;
+  border-radius:8px;
   border:1px solid #e5e7eb;
   font-size:14px;
   background:#fafafa;
-  transition:border .15s ease;
 }
 
 .admin-input:focus{
@@ -170,61 +172,130 @@
 
 .admin-table select{
   width:100%;
-  padding:7px 10px;
-  border-radius:7px;
-  border:1px solid #e5e7eb;
-  font-size:14px;
-  background:#fafafa;
-}
-
-/* ================= PERMISSIONS ================= */
-
-.permission-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:10px;
-  margin-top:12px;
-}
-
-.permission-grid label{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background:#f9fafb;
-  padding:10px 12px;
+  padding:8px 10px;
   border-radius:8px;
   border:1px solid #e5e7eb;
+}
+
+
+/* ================= ROLES LIST ================= */
+
+.admin-roles{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:14px;
+  margin-top:10px;
+}
+
+/* einzelne Role Card */
+
+.admin-roles li{
+
+  list-style:none;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  padding:12px 14px;
+
+  border-radius:10px;
+
+  background:#f9fafb;
+
+  border:1px solid #e5e7eb;
+
+  font-size:14px;
+  font-weight:500;
+
+  transition:.15s;
+
+}
+
+.admin-roles li:hover{
+
+  background:#f3f4f6;
+
+  border-color:#d1d5db;
+
+}
+
+/* Role Name */
+
+.admin-roles li span{
+
+  color:#111827;
+}
+
+/* Delete Button */
+
+.admin-roles li button{
+
+  padding:5px 9px;
+
+  font-size:12px;
+
+}
+
+
+/* ================= PERMISSION GRID ================= */
+
+.permission-grid{
+
+  display:grid;
+
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+
+  gap:12px;
+
+}
+
+
+/* ================= PERMISSION CHIP ================= */
+
+.permission-grid label{
+
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:11px 13px;
+
+  border-radius:10px;
+
+  border:1px solid #e5e7eb;
+
+  background:#f9fafb;
+
   font-size:13px;
+
   cursor:pointer;
-  transition:all .15s ease;
+
+  transition:.15s;
+
 }
 
 .permission-grid label:hover{
+
   background:#f3f4f6;
+  border-color:#d1d5db;
+
 }
 
 .permission-grid input{
+
+  accent-color:#2563eb;
   cursor:pointer;
+
 }
 
-/* ================= ROLE BLOCK ================= */
-
-.permission-role{
-  margin-bottom:24px;
-}
-
-.permission-role h4{
-  font-size:15px;
-  margin-bottom:10px;
-  font-weight:600;
-}
 
 /* ================= RESPONSIVE ================= */
 
 @media (max-width:900px){
 
   .admin-container{
-    padding:20px;
+    padding:22px;
   }
 
   .admin-toolbar{
@@ -235,4 +306,20 @@
     grid-template-columns:1fr;
   }
 
+}
+
+.permission-text{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.permission-label{
+  font-weight:250;
+  color:#111827;
+}
+
+.permission-desc{
+  font-weight: 500;
+  color:#6b7280;
 }
