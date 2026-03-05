@@ -113,6 +113,14 @@ export default function SidebarLayout({
 
   /* Navigation Section */
 
+  const handleLogout = () => {
+      // z.B. Token löschen
+      localStorage.removeItem("token");
+
+      // optional redirect
+      window.location.href = "/login";
+    };
+
   const renderSection = (section: string, title?: string) => {
 
     const items = navItems.filter(
@@ -178,7 +186,6 @@ export default function SidebarLayout({
         </div>
 
         <nav className="nav">
-
           {renderSection("main")}
 
           {renderSection("dispo", "Dispo")}
@@ -187,6 +194,9 @@ export default function SidebarLayout({
 
           {renderSection("system", "System")}
 
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
+          </button>
         </nav>
 
         <div className="sidebar-footer">
