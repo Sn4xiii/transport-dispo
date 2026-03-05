@@ -1,77 +1,74 @@
-"use client";
+/* ================= TOURS ================= */
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";
-
-type Permission = {
-  key: string;
-};
-
-type RolePermission = {
-  permissions: Permission;
-};
-
-type Role = {
-  role_permissions: RolePermission[];
-};
-
-type ProfileQuery = {
-  role_id: string;
-  roles: Role[];
-};
-
-export function usePermissions() {
-
-  const [permissions, setPermissions] = useState<string[]>([]);
-
-  useEffect(() => {
-
-    async function loadPermissions() {
-
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select(`
-          role_id,
-          roles!profiles_role_fk (
-            role_permissions (
-              permissions (
-                key
-              )
-            )
-          )
-        `)
-        .eq("id", user.id)
-        .single();
-
-      const profile = data as ProfileQuery | null;
-
-      if (!profile) return;
-
-      const keys =
-        profile.roles
-          ?.flatMap(role =>
-            role.role_permissions.map(
-              rp => rp.permissions.key
-            )
-          ) ?? [];
-
-      setPermissions(keys);
-
-    }
-
-    loadPermissions();
-
-  }, []);
-
-  function can(permission: string) {
-    return permissions.includes(permission);
-  }
-
-  return { permissions, can };
-
+export type Tour = {
+  id: string
+  week_id: string
+  planning_day_id: string | null
+  created_at?: string
 }
+
+export type TourColumn = {
+  id: string
+  label: string
+  key: string
+  type: string
+  visible: boolean
+  position?: number
+  created_at?: string
+}
+
+export type TourValue = {
+  id: string
+  tour_id: string
+  column_id: string
+  value: string | null
+}
+
+/* ================= RELATIONS ================= */
+
+export type TourWithRelations = Tour & {
+  values?: TourValue[]
+}
+
+
+/* ================= USERS ================= */
+
+export type Profile = {
+  id: string
+  email?: string
+  name?: string
+  company?: string
+  phone?: string
+  role_id?: string
+  created_at?: string
+}
+
+
+/* ================= ROLES ================= */
+
+export type Role = {
+  id: string
+  name: string
+}
+
+export type Permission = {
+  id?: string
+  key: string
+  label?: string
+  description?: string
+}
+
+export type RolePermission = {
+  role_id: string
+  permission_id: string
+}
+
+/* ================= COLUMN TYPES ================= */
+
+export type ColumnType =
+  | "text"
+  | "number"
+  | "date"
+  | "time"
+  | "select"
+  | "checkbox";

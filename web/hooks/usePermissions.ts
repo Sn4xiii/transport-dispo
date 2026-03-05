@@ -8,7 +8,7 @@ type Permission = {
 };
 
 type RolePermission = {
-  permissions: Permission;
+  permissions: Permission | null;
 };
 
 type Role = {
@@ -17,7 +17,7 @@ type Role = {
 
 type ProfileQuery = {
   role_id: string;
-  roles: Role | Role[];
+  roles: Role | null;
 };
 
 export function usePermissions() {
@@ -29,7 +29,7 @@ export function usePermissions() {
     async function loadPermissions() {
 
       const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
+      const user = userData?.user;
 
       if (!user) return;
 
@@ -50,19 +50,12 @@ export function usePermissions() {
 
       const profile = data as ProfileQuery | null;
 
-      if (!profile) return;
+      if (!profile?.roles) return;
 
-      /* roles kann Objekt oder Array sein */
-
-      const roles = Array.isArray(profile.roles)
-        ? profile.roles
-        : [profile.roles];
-
-      const keys = roles.flatMap(role =>
-        role.role_permissions.map(
-          rp => rp.permissions.key
-        )
-      );
+      const keys =
+        profile.roles.role_permissions
+          ?.map(rp => rp.permissions?.key)
+          .filter(Boolean) as string[];
 
       setPermissions(keys);
 
