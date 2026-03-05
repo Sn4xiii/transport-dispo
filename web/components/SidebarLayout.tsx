@@ -208,7 +208,7 @@ export default function SidebarLayout({
             <Menu size={20} />
           </button>
 
-          <h1>Transportplan Pilsen & Barsinghausen 2026</h1>
+          <h1>Transportplan Pilsen & Barsinghausen 2026 by Mike</h1>
 
         </header>
 
