@@ -495,3 +495,44 @@
   gap: 10px;
   margin-top: 20px;
 }
+
+.group-settings-menu {
+  min-width: 240px;
+}
+
+.group-settings-header {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #344054;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.group-settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #eef2f6;
+}
+
+.group-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.group-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.group-settings-item:hover {
+  background: #f8fafc;
+}
