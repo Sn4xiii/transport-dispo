@@ -7,433 +7,576 @@ import "./admin.css";
 /* ================= TYPES ================= */
 
 type Profile = {
-  id: string
-  email: string | null
-  name: string | null
-  company: string | null
-  phone: string | null
-  role: string | null
-}
+  id: string;
+  email: string | null;
+  name: string | null;
+  company: string | null;
+  phone: string | null;
+  role: string | null;
+};
 
 type Role = {
-  id: string
-  name: string
-}
+  id: string;
+  name: string;
+};
 
 type Permission = {
-  id: string
-  key: string
-  label: string | null
-  description: string | null
-}
+  id: string;
+  key: string;
+  label: string | null;
+  description: string | null;
+};
 
 type RolePermission = {
-  role_id: string
-  permission_id: string
-  permissions: Permission
-}
+  role_id: string;
+  permission_id: string;
+  permissions: Permission;
+};
 
 type ColumnGroup = {
-  id: string
-  name: string
-  position: number
-  is_visible: boolean
-}
+  id: string;
+  name: string;
+  position: number;
+  is_visible: boolean;
+};
 
 type TourColumn = {
-  id: string
-  label: string
-  column_group_id: string
-  position: number
-  is_visible: boolean
-}
+  id: string;
+  label: string;
+  column_group_id: string;
+  position: number;
+  is_visible: boolean;
+};
+
+type TabKey = "users" | "roles" | "permissions" | "columns";
+
+type Notice =
+  | {
+      type: "success" | "error" | "info";
+      message: string;
+    }
+  | null;
 
 /* ================= PAGE ================= */
 
-export default function AdminPage(){
+export default function AdminPage() {
+  const [tab, setTab] = useState<TabKey>("users");
 
-  const [tab,setTab] =
-    useState<"users"|"roles"|"permissions"|"columns">("users")
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
 
-  const [users,setUsers] = useState<Profile[]>([])
-  const [roles,setRoles] = useState<Role[]>([])
-  const [permissions,setPermissions] = useState<Permission[]>([])
-  const [rolePermissions,setRolePermissions] =
-    useState<RolePermission[]>([])
+  const [columnGroups, setColumnGroups] = useState<ColumnGroup[]>([]);
+  const [columns, setColumns] = useState<TourColumn[]>([]);
 
-  const [columnGroups,setColumnGroups] = useState<ColumnGroup[]>([])
-  const [columns,setColumns] = useState<TourColumn[]>([])
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
 
-  const [search,setSearch] = useState("")
-  const [loading,setLoading] = useState(true)
-
-  const [newEmail,setNewEmail] = useState("")
-  const [newRole,setNewRole] = useState("")
-
-  const [newGroup,setNewGroup] = useState("")
-  const [newColumn,setNewColumn] = useState("")
-  const [selectedGroup,setSelectedGroup] = useState("")
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [newGroup, setNewGroup] = useState("");
+  const [newColumn, setNewColumn] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState("");
 
   /* ================= LOAD ================= */
 
-  useEffect(()=>{
+  async function loadData(showLoader = true) {
+    if (showLoader) setLoading(true);
+    setNotice(null);
 
-    async function load(){
-
-      setLoading(true)
-
-      const { data:usersData } =
-        await supabase.from("profiles").select("*")
-
-      if(usersData) setUsers(usersData)
-
-      const { data:rolesData } =
-        await supabase.from("roles").select("*")
-
-      if(rolesData) setRoles(rolesData)
-
-      const { data:permissionsData } =
-        await supabase.from("permissions").select("*")
-
-      if(permissionsData) setPermissions(permissionsData)
-
-      const { data:rpData } =
-        await supabase
+    try {
+      const [
+        usersRes,
+        rolesRes,
+        permissionsRes,
+        rolePermissionsRes,
+        groupsRes,
+        columnsRes,
+      ] = await Promise.all([
+        supabase.from("profiles").select("*").order("email"),
+        supabase.from("roles").select("*").order("name"),
+        supabase.from("permissions").select("*").order("key"),
+        supabase
           .from("role_permissions")
           .select(`
             role_id,
             permission_id,
             permissions (*)
-          `)
+          `),
+        supabase.from("column_groups").select("*").order("position"),
+        supabase.from("tour_columns").select("*").order("position"),
+      ]);
 
-      if(rpData) setRolePermissions(rpData)
+      if (usersRes.error) throw usersRes.error;
+      if (rolesRes.error) throw rolesRes.error;
+      if (permissionsRes.error) throw permissionsRes.error;
+      if (rolePermissionsRes.error) throw rolePermissionsRes.error;
+      if (groupsRes.error) throw groupsRes.error;
+      if (columnsRes.error) throw columnsRes.error;
 
-      const { data:groupsData } =
-        await supabase
-          .from("column_groups")
-          .select("*")
-          .order("position")
-
-      if(groupsData) setColumnGroups(groupsData)
-
-      const { data:columnsData } =
-        await supabase
-          .from("tour_columns")
-          .select("*")
-          .order("position")
-
-      if(columnsData) setColumns(columnsData)
-
-      setLoading(false)
-
+      setUsers((usersRes.data ?? []) as Profile[]);
+      setRoles((rolesRes.data ?? []) as Role[]);
+      setPermissions((permissionsRes.data ?? []) as Permission[]);
+      setRolePermissions((rolePermissionsRes.data ?? []) as RolePermission[]);
+      setColumnGroups((groupsRes.data ?? []) as ColumnGroup[]);
+      setColumns((columnsRes.data ?? []) as TourColumn[]);
+    } catch (error: any) {
+      console.error("Admin load error:", error);
+      setNotice({
+        type: "error",
+        message: error?.message ?? "Daten konnten nicht geladen werden.",
+      });
+    } finally {
+      if (showLoader) setLoading(false);
     }
+  }
 
-    load()
+  useEffect(() => {
+    loadData(true);
+  }, []);
 
-  },[])
+  /* ================= DERIVED ================= */
 
-  /* ================= USER SEARCH ================= */
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
 
-  const filteredUsers = useMemo(()=>{
+    if (!q) return users;
 
-    const q = search.toLowerCase()
+    return users.filter(
+      (u) =>
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.company || "").toLowerCase().includes(q) ||
+        (u.phone || "").toLowerCase().includes(q) ||
+        (u.role || "").toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
-    return users.filter(u =>
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.name || "").toLowerCase().includes(q)
-    )
+  const stats = useMemo(() => {
+    return {
+      users: users.length,
+      roles: roles.length,
+      permissions: permissions.length,
+      groups: columnGroups.length,
+      columns: columns.length,
+      visibleColumns: columns.filter((c) => c.is_visible).length,
+    };
+  }, [users, roles, permissions, columnGroups, columns]);
 
-  },[users,search])
+  const groupedColumns = useMemo(() => {
+    return columnGroups.map((group) => ({
+      group,
+      items: columns
+        .filter((c) => c.column_group_id === group.id)
+        .sort((a, b) => a.position - b.position),
+    }));
+  }, [columnGroups, columns]);
+
+  /* ================= HELPERS ================= */
+
+  function showSuccess(message: string) {
+    setNotice({ type: "success", message });
+  }
+
+  function showError(error: any, fallback: string) {
+    console.error(error);
+    setNotice({
+      type: "error",
+      message: error?.message ?? fallback,
+    });
+  }
+
+  function hasPermission(roleId: string, permissionId: string) {
+    return rolePermissions.some(
+      (rp) => rp.role_id === roleId && rp.permission_id === permissionId
+    );
+  }
 
   /* ================= USER UPDATE ================= */
 
   async function updateUser(
-    id:string,
-    field:"name"|"company"|"phone"|"role",
-    value:string
-  ){
+    id: string,
+    field: "name" | "company" | "phone" | "role",
+    value: string
+  ) {
+    const previous = users;
 
-    await supabase
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, [field]: value } : u))
+    );
+
+    const { error } = await supabase
       .from("profiles")
-      .update({ [field]:value })
-      .eq("id",id)
+      .update({ [field]: value || null })
+      .eq("id", id);
 
-    setUsers(prev =>
-      prev.map(u =>
-        u.id === id ? { ...u,[field]:value } : u
-      )
-    )
-
+    if (error) {
+      setUsers(previous);
+      showError(error, "User konnte nicht aktualisiert werden.");
+    }
   }
 
   /* ================= USER DELETE ================= */
 
-  async function deleteUser(id:string){
+  async function deleteUser(id: string) {
+    const ok = window.confirm("User wirklich löschen?");
+    if (!ok) return;
 
-    if(!confirm("User löschen?")) return
+    const previous = users;
+    setUsers((prev) => prev.filter((u) => u.id !== id));
 
-    await supabase
-      .from("profiles")
-      .delete()
-      .eq("id",id)
+    const { error } = await supabase.from("profiles").delete().eq("id", id);
 
-    setUsers(prev =>
-      prev.filter(u=>u.id !== id)
-    )
+    if (error) {
+      setUsers(previous);
+      showError(error, "User konnte nicht gelöscht werden.");
+      return;
+    }
 
+    showSuccess("User wurde gelöscht.");
   }
 
   /* ================= CREATE USER ================= */
 
-  async function createUser(){
+  async function createUser() {
+    if (!newEmail.trim()) return;
 
-    if(!newEmail) return
+    setBusy(true);
+    setNotice(null);
 
-    await fetch("/backend/create-user",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({ email:newEmail })
-    })
-    .then(res=>res.json())
-    .then(data=>console.log(data))
+    try {
+      const res = await fetch("/backend/create-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: newEmail.trim() }),
+      });
 
-    setNewEmail("")
+      const data = await res.json();
 
+      if (!res.ok) {
+        throw new Error(data?.error || "User konnte nicht erstellt werden.");
+      }
+
+      setNewEmail("");
+      await loadData(false);
+      showSuccess("User wurde erstellt.");
+    } catch (error: any) {
+      showError(error, "User konnte nicht erstellt werden.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   /* ================= ROLE CREATE ================= */
 
-  async function createRole(){
+  async function createRole() {
+    if (!newRole.trim()) return;
 
-    if(!newRole) return
+    setBusy(true);
+    setNotice(null);
 
-    const { data } =
-      await supabase
+    try {
+      const { data, error } = await supabase
         .from("roles")
-        .insert({ name:newRole })
+        .insert({ name: newRole.trim() })
         .select()
-        .single()
+        .single();
 
-    if(data){
-      setRoles(prev=>[...prev,data])
-      setNewRole("")
+      if (error) throw error;
+
+      if (data) {
+        setRoles((prev) =>
+          [...prev, data as Role].sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
+
+      setNewRole("");
+      showSuccess("Rolle wurde erstellt.");
+    } catch (error: any) {
+      showError(error, "Rolle konnte nicht erstellt werden.");
+    } finally {
+      setBusy(false);
     }
-
   }
 
   /* ================= ROLE DELETE ================= */
 
-  async function deleteRole(id:string){
+  async function deleteRole(id: string) {
+    const ok = window.confirm("Rolle wirklich löschen?");
+    if (!ok) return;
 
-    if(!confirm("Role löschen?")) return
+    const previousRoles = roles;
+    setRoles((prev) => prev.filter((r) => r.id !== id));
 
-    await supabase
-      .from("roles")
-      .delete()
-      .eq("id",id)
+    const { error } = await supabase.from("roles").delete().eq("id", id);
 
-    setRoles(prev =>
-      prev.filter(r=>r.id !== id)
-    )
+    if (error) {
+      setRoles(previousRoles);
+      showError(error, "Rolle konnte nicht gelöscht werden.");
+      return;
+    }
 
+    setRolePermissions((prev) => prev.filter((rp) => rp.role_id !== id));
+    showSuccess("Rolle wurde gelöscht.");
   }
 
   /* ================= PERMISSION TOGGLE ================= */
 
-  async function togglePermission(roleId:string,permission:Permission){
-
+  async function togglePermission(roleId: string, permission: Permission) {
     const exists = rolePermissions.find(
-      rp =>
-        rp.role_id === roleId &&
-        rp.permission_id === permission.id
-    )
+      (rp) => rp.role_id === roleId && rp.permission_id === permission.id
+    );
 
-    if(exists){
+    if (exists) {
+      const previous = rolePermissions;
 
-      await supabase
+      setRolePermissions((prev) =>
+        prev.filter(
+          (rp) =>
+            !(
+              rp.role_id === roleId && rp.permission_id === permission.id
+            )
+        )
+      );
+
+      const { error } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("role_id",roleId)
-        .eq("permission_id",permission.id)
+        .eq("role_id", roleId)
+        .eq("permission_id", permission.id);
 
-      setRolePermissions(prev =>
-        prev.filter(
-          rp =>
-            !(rp.role_id === roleId &&
-              rp.permission_id === permission.id)
-        )
-      )
+      if (error) {
+        setRolePermissions(previous);
+        showError(error, "Permission konnte nicht entfernt werden.");
+        return;
+      }
 
-    }else{
-
-      await supabase
-        .from("role_permissions")
-        .insert({
-          role_id:roleId,
-          permission_id:permission.id
-        })
-
-      setRolePermissions(prev => [
-        ...prev,
-        {
-          role_id:roleId,
-          permission_id:permission.id,
-          permissions:permission
-        }
-      ])
-
+      return;
     }
 
-  }
+    const optimistic: RolePermission = {
+      role_id: roleId,
+      permission_id: permission.id,
+      permissions: permission,
+    };
 
-  function hasPermission(roleId:string,permissionId:string){
+    const previous = rolePermissions;
+    setRolePermissions((prev) => [...prev, optimistic]);
 
-    return rolePermissions.some(
-      rp =>
-        rp.role_id === roleId &&
-        rp.permission_id === permissionId
-    )
+    const { error } = await supabase.from("role_permissions").insert({
+      role_id: roleId,
+      permission_id: permission.id,
+    });
 
+    if (error) {
+      setRolePermissions(previous);
+      showError(error, "Permission konnte nicht gesetzt werden.");
+    }
   }
 
   /* ================= COLUMN GROUP CREATE ================= */
 
-  async function createGroup(){
+  async function createGroup() {
+    if (!newGroup.trim()) return;
 
-    if(!newGroup) return
+    setBusy(true);
+    setNotice(null);
 
-    const { data } =
-      await supabase
+    try {
+      const { data, error } = await supabase
         .from("column_groups")
         .insert({
-          name:newGroup,
-          position:columnGroups.length + 1,
-          is_visible:true
+          name: newGroup.trim(),
+          position: columnGroups.length + 1,
+          is_visible: true,
         })
         .select()
-        .single()
+        .single();
 
-    if(data){
-      setColumnGroups(prev=>[...prev,data])
-      setNewGroup("")
+      if (error) throw error;
+
+      if (data) {
+        setColumnGroups((prev) =>
+          [...prev, data as ColumnGroup].sort((a, b) => a.position - b.position)
+        );
+      }
+
+      setNewGroup("");
+      showSuccess("Gruppe wurde erstellt.");
+    } catch (error: any) {
+      showError(error, "Gruppe konnte nicht erstellt werden.");
+    } finally {
+      setBusy(false);
     }
-
   }
 
   /* ================= COLUMN CREATE ================= */
 
-  async function createColumn(){
+  async function createColumn() {
+    if (!newColumn.trim() || !selectedGroup) return;
 
-    if(!newColumn || !selectedGroup) return
+    setBusy(true);
+    setNotice(null);
 
-    const { data } =
-      await supabase
+    try {
+      const { data, error } = await supabase
         .from("tour_columns")
         .insert({
-          label:newColumn,
-          column_group_id:selectedGroup,
-          position:columns.length + 1,
-          is_visible:true
+          label: newColumn.trim(),
+          column_group_id: selectedGroup,
+          position: columns.length + 1,
+          is_visible: true,
         })
         .select()
-        .single()
+        .single();
 
-    if(data){
-      setColumns(prev=>[...prev,data])
-      setNewColumn("")
+      if (error) throw error;
+
+      if (data) {
+        setColumns((prev) =>
+          [...prev, data as TourColumn].sort((a, b) => a.position - b.position)
+        );
+      }
+
+      setNewColumn("");
+      showSuccess("Spalte wurde erstellt.");
+    } catch (error: any) {
+      showError(error, "Spalte konnte nicht erstellt werden.");
+    } finally {
+      setBusy(false);
     }
-
   }
 
   /* ================= COLUMN VISIBILITY ================= */
 
-  async function toggleColumn(id:string,visible:boolean){
+  async function toggleColumn(id: string, visible: boolean) {
+    const previous = columns;
 
-    await supabase
-      .from("tour_columns")
-      .update({ is_visible:!visible })
-      .eq("id",id)
-
-    setColumns(prev =>
-      prev.map(c =>
-        c.id===id ? {...c,is_visible:!visible} : c
+    setColumns((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, is_visible: !visible } : c
       )
-    )
+    );
 
+    const { error } = await supabase
+      .from("tour_columns")
+      .update({ is_visible: !visible })
+      .eq("id", id);
+
+    if (error) {
+      setColumns(previous);
+      showError(error, "Sichtbarkeit konnte nicht geändert werden.");
+    }
   }
 
-  if(loading){
-    return <div className="admin-container">Loading...</div>
+  /* ================= RENDER ================= */
+
+  if (loading) {
+    return <div className="admin-container">Loading...</div>;
   }
 
-  return(
-
+  return (
     <div className="admin-container">
+      <div className="admin-header">
+        <div>
+          <h1 className="admin-title">Admin Panel</h1>
+          <p className="admin-subtitle">
+            Benutzer, Rollen, Berechtigungen und Spalten zentral verwalten
+          </p>
+        </div>
 
-      <h1 className="admin-title">Admin Panel</h1>
+        <button className="btn-secondary" onClick={() => loadData(false)}>
+          Reload
+        </button>
+      </div>
+
+      {notice && (
+        <div className={`admin-notice admin-notice-${notice.type}`}>
+          {notice.message}
+        </div>
+      )}
+
+      <div className="admin-stats">
+        <div className="admin-stat-card">
+          <span>Users</span>
+          <strong>{stats.users}</strong>
+        </div>
+        <div className="admin-stat-card">
+          <span>Roles</span>
+          <strong>{stats.roles}</strong>
+        </div>
+        <div className="admin-stat-card">
+          <span>Permissions</span>
+          <strong>{stats.permissions}</strong>
+        </div>
+        <div className="admin-stat-card">
+          <span>Groups</span>
+          <strong>{stats.groups}</strong>
+        </div>
+        <div className="admin-stat-card">
+          <span>Columns</span>
+          <strong>
+            {stats.visibleColumns}/{stats.columns}
+          </strong>
+        </div>
+      </div>
 
       <div className="admin-tabs">
-
         <button
-          className={tab==="users" ? "active":""}
-          onClick={()=>setTab("users")}
+          className={tab === "users" ? "active" : ""}
+          onClick={() => setTab("users")}
         >
           Users
         </button>
 
         <button
-          className={tab==="roles" ? "active":""}
-          onClick={()=>setTab("roles")}
+          className={tab === "roles" ? "active" : ""}
+          onClick={() => setTab("roles")}
         >
           Roles
         </button>
 
         <button
-          className={tab==="permissions" ? "active":""}
-          onClick={()=>setTab("permissions")}
+          className={tab === "permissions" ? "active" : ""}
+          onClick={() => setTab("permissions")}
         >
           Permissions
         </button>
 
         <button
-          className={tab==="columns" ? "active":""}
-          onClick={()=>setTab("columns")}
+          className={tab === "columns" ? "active" : ""}
+          onClick={() => setTab("columns")}
         >
           Columns
         </button>
-
       </div>
 
-      {/* USERS */}
-
-      {tab==="users" && (
-
-        <div>
-
+      {tab === "users" && (
+        <div className="admin-panel">
           <div className="admin-toolbar">
-
             <input
-              placeholder="Search..."
+              placeholder="Search users..."
               value={search}
-              onChange={e=>setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
 
             <input
-              placeholder="Email"
+              placeholder="Neue User E-Mail"
               value={newEmail}
-              onChange={e=>setNewEmail(e.target.value)}
+              onChange={(e) => setNewEmail(e.target.value)}
             />
 
-            <button className="btn-primary" onClick={createUser}>
-              Create User
+            <button className="btn-primary" onClick={createUser} disabled={busy}>
+              {busy ? "Creating..." : "Create User"}
             </button>
-
           </div>
 
           <table className="admin-table">
-
             <thead>
               <tr>
                 <th>Email</th>
@@ -446,18 +589,15 @@ export default function AdminPage(){
             </thead>
 
             <tbody>
-
-              {filteredUsers.map(user=>(
-
+              {filteredUsers.map((user) => (
                 <tr key={user.id}>
-
-                  <td>{user.email}</td>
+                  <td className="admin-cell-strong">{user.email}</td>
 
                   <td>
                     <input
                       value={user.name || ""}
-                      onChange={e =>
-                        updateUser(user.id,"name",e.target.value)
+                      onChange={(e) =>
+                        updateUser(user.id, "name", e.target.value)
                       }
                     />
                   </td>
@@ -465,8 +605,8 @@ export default function AdminPage(){
                   <td>
                     <input
                       value={user.company || ""}
-                      onChange={e =>
-                        updateUser(user.id,"company",e.target.value)
+                      onChange={(e) =>
+                        updateUser(user.id, "company", e.target.value)
                       }
                     />
                   </td>
@@ -474,243 +614,227 @@ export default function AdminPage(){
                   <td>
                     <input
                       value={user.phone || ""}
-                      onChange={e =>
-                        updateUser(user.id,"phone",e.target.value)
+                      onChange={(e) =>
+                        updateUser(user.id, "phone", e.target.value)
                       }
                     />
                   </td>
 
                   <td>
-
                     <select
                       value={user.role || ""}
-                      onChange={e =>
-                        updateUser(user.id,"role",e.target.value)
+                      onChange={(e) =>
+                        updateUser(user.id, "role", e.target.value)
                       }
                     >
-
-                      {roles.map(r=>(
+                      <option value="">No role</option>
+                      {roles.map((r) => (
                         <option key={r.id} value={r.name}>
                           {r.name}
                         </option>
                       ))}
-
                     </select>
-
                   </td>
 
                   <td>
-
                     <button
                       className="btn-danger"
-                      onClick={()=>deleteUser(user.id)}
+                      onClick={() => deleteUser(user.id)}
                     >
                       Delete
                     </button>
-
                   </td>
-
                 </tr>
-
               ))}
 
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="admin-empty">
+                    Keine User gefunden.
+                  </td>
+                </tr>
+              )}
             </tbody>
-
           </table>
-
         </div>
-
       )}
 
-      {/* ROLES */}
-
-      {tab==="roles" && (
-
-        <div>
-
+      {tab === "roles" && (
+        <div className="admin-panel">
           <div className="admin-toolbar">
-
             <input
-              placeholder="New Role"
+              placeholder="Neue Rolle"
               value={newRole}
-              onChange={e=>setNewRole(e.target.value)}
+              onChange={(e) => setNewRole(e.target.value)}
             />
 
-            <button className="btn-primary" onClick={createRole}>
-              Create Role
+            <button className="btn-primary" onClick={createRole} disabled={busy}>
+              {busy ? "Creating..." : "Create Role"}
             </button>
-
           </div>
 
-          <ul className="admin-roles">
+          <div className="admin-role-grid">
+            {roles.map((role) => {
+              const userCount = users.filter((u) => u.role === role.name).length;
+              const permissionCount = rolePermissions.filter(
+                (rp) => rp.role_id === role.id
+              ).length;
 
-            {roles.map(role=>(
+              return (
+                <div key={role.id} className="admin-role-card">
+                  <div>
+                    <h3>{role.name}</h3>
+                    <p>{userCount} User · {permissionCount} Permissions</p>
+                  </div>
 
-              <li key={role.id}>
+                  <button
+                    className="btn-danger"
+                    onClick={() => deleteRole(role.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              );
+            })}
 
-                {role.name}
-
-                <button
-                  className="btn-danger"
-                  onClick={()=>deleteRole(role.id)}
-                >
-                  Delete
-                </button>
-
-              </li>
-
-            ))}
-
-          </ul>
-
+            {roles.length === 0 && (
+              <div className="admin-empty-card">Noch keine Rollen vorhanden.</div>
+            )}
+          </div>
         </div>
-
       )}
 
-      {/* PERMISSIONS */}
+      {tab === "permissions" && (
+        <div className="admin-panel">
+          <div className="permission-table-wrap">
+            <table className="admin-table permission-matrix">
+              <thead>
+                <tr>
+                  <th>Permission</th>
+                  {roles.map((role) => (
+                    <th key={role.id}>{role.name}</th>
+                  ))}
+                </tr>
+              </thead>
 
-      {tab==="permissions" && (
+              <tbody>
+                {permissions.map((permission) => (
+                  <tr key={permission.id}>
+                    <td>
+                      <div className="permission-cell">
+                        <strong>{permission.label || permission.key}</strong>
+                        {permission.description && (
+                          <span>{permission.description}</span>
+                        )}
+                      </div>
+                    </td>
 
-        <div>
-
-          {roles.map(role=>(
-
-            <div key={role.id} className="permission-role">
-
-              <h3>{role.name}</h3>
-
-              <div className="permission-grid">
-
-                {permissions.map(permission=>(
-
-                  <label key={permission.id}>
-
-                    <input
-                      type="checkbox"
-                      checked={
-                        hasPermission(
-                          role.id,
-                          permission.id
-                        )
-                      }
-                      onChange={()=>
-                        togglePermission(role.id,permission)
-                      }
-                    />
-
-                    {permission.label || permission.key}
-
-                  </label>
-
+                    {roles.map((role) => (
+                      <td key={role.id}>
+                        <input
+                          type="checkbox"
+                          checked={hasPermission(role.id, permission.id)}
+                          onChange={() => togglePermission(role.id, permission)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
                 ))}
 
+                {permissions.length === 0 && (
+                  <tr>
+                    <td colSpan={roles.length + 1} className="admin-empty">
+                      Keine Permissions gefunden.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === "columns" && (
+        <div className="admin-panel">
+          <div className="admin-columns-grid">
+            <div className="admin-card">
+              <h2>Column Groups</h2>
+
+              <div className="admin-toolbar">
+                <input
+                  placeholder="Neue Gruppe"
+                  value={newGroup}
+                  onChange={(e) => setNewGroup(e.target.value)}
+                />
+
+                <button className="btn-primary" onClick={createGroup} disabled={busy}>
+                  Create Group
+                </button>
               </div>
 
-            </div>
+              <div className="admin-group-list">
+                {groupedColumns.map(({ group, items }) => (
+                  <div key={group.id} className="admin-group-card">
+                    <div className="admin-group-head">
+                      <div>
+                        <h3>{group.name}</h3>
+                        <p>{items.length} Spalten</p>
+                      </div>
+                    </div>
 
-          ))}
+                    <ul className="admin-column-list">
+                      {items.map((col) => (
+                        <li key={col.id}>
+                          <span>{col.label}</span>
 
-        </div>
+                          <button
+                            className={col.is_visible ? "btn-secondary" : "btn-primary"}
+                            onClick={() => toggleColumn(col.id, col.is_visible)}
+                          >
+                            {col.is_visible ? "Hide" : "Show"}
+                          </button>
+                        </li>
+                      ))}
 
-      )}
-
-      {/* COLUMNS */}
-
-      {tab==="columns" && (
-
-        <div>
-
-          <h2>Column Groups</h2>
-
-          <div className="admin-toolbar">
-
-            <input
-              placeholder="New Group"
-              value={newGroup}
-              onChange={e=>setNewGroup(e.target.value)}
-            />
-
-            <button
-              className="btn-primary"
-              onClick={createGroup}
-            >
-              Create Group
-            </button>
-
-          </div>
-
-          {columnGroups.map(group=>(
-
-            <div key={group.id}>
-
-              <h3>{group.name}</h3>
-
-              <ul>
-
-                {columns
-                  .filter(c=>c.column_group_id===group.id)
-                  .map(col=>(
-
-                  <li key={col.id}>
-
-                    {col.label}
-
-                    <button
-                      onClick={()=>toggleColumn(col.id,col.is_visible)}
-                    >
-                      {col.is_visible ? "Hide":"Show"}
-                    </button>
-
-                  </li>
-
+                      {items.length === 0 && (
+                        <li className="admin-empty-inline">Keine Spalten in dieser Gruppe.</li>
+                      )}
+                    </ul>
+                  </div>
                 ))}
-
-              </ul>
-
+              </div>
             </div>
 
-          ))}
+            <div className="admin-card">
+              <h2>Create Column</h2>
 
-          <h2 style={{marginTop:40}}>Create Column</h2>
+              <div className="admin-form-vertical">
+                <input
+                  placeholder="Column Label"
+                  value={newColumn}
+                  onChange={(e) => setNewColumn(e.target.value)}
+                />
 
-          <div className="admin-toolbar">
+                <select
+                  value={selectedGroup}
+                  onChange={(e) => setSelectedGroup(e.target.value)}
+                >
+                  <option value="">Select Group</option>
+                  {columnGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
 
-            <input
-              placeholder="Column Label"
-              value={newColumn}
-              onChange={e=>setNewColumn(e.target.value)}
-            />
-
-            <select
-              value={selectedGroup}
-              onChange={e=>setSelectedGroup(e.target.value)}
-            >
-
-              <option value="">Select Group</option>
-
-              {columnGroups.map(g=>(
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-
-            </select>
-
-            <button
-              className="btn-primary"
-              onClick={createColumn}
-            >
-              Create Column
-            </button>
-
+                <button className="btn-primary" onClick={createColumn} disabled={busy}>
+                  Create Column
+                </button>
+              </div>
+            </div>
           </div>
-
         </div>
-
       )}
-
     </div>
-
-  )
-
+  );
 }
