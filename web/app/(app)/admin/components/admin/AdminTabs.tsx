@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 
-import UsersTab from "./UsersTab"
-import RolesTab from "./RolesTab"
-import PermissionsTab from "./PermissionsTab"
-import ColumnsTab from "./ColumnsTab"
+import UsersTab from "./tabs/UsersTab"
+import RolesTab from "./tabs/RolesTab"
+import PermissionsTab from "./tabs/PermissionsTab"
+import ColumnsTab from "./tabs/ColumnsTab"
+
 
 export default function AdminTabs(){
 
