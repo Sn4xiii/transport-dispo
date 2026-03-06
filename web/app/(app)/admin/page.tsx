@@ -189,7 +189,7 @@ export default function AdminPage(){
 
     if(!newEmail) return
 
-    await fetch("/api/create-user",{
+    await fetch("/backend/create-user",{
       method:"POST",
       headers:{
         "Content-Type":"application/json"
