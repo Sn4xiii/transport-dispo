@@ -145,17 +145,17 @@ export default function LoginPage() {
               <LogIn size={18} />
               <span>{loading ? "Meldet an..." : "Login"}</span>
             </button>
-
-            <div className="login-links-row">
-              <Link href="/forgot-password" className="login-link-inline">
-                Passwort vergessen?
-              </Link>
-
-              <Link href="/register" className="login-link-inline">
-                Account erstellen
-              </Link>
-            </div>
           </form>
+
+          <div className="login-links-row">
+            <Link href="/forgot-password" className="login-link-inline">
+              Passwort vergessen?
+            </Link>
+
+            <Link href="/register" className="login-link-inline">
+              Account erstellen
+            </Link>
+          </div>
         </div>
       </div>
     </div>
