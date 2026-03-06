@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tour, TourColumn, TourValue } from "@/types/database";
 import NewTourModal from "@/components/NewTourModal";
-import { DndProvider } from "react-dnd";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import "./week.css";
 
@@ -33,6 +33,10 @@ type ColumnGroup = {
   is_visible: boolean;
 };
 
+type DragItem = {
+  tourId: string;
+};
+
 type TourWithRelations = Tour & {
   cancelled?: boolean;
   truck_number?: string | null;
@@ -43,28 +47,13 @@ type TourWithRelations = Tour & {
   } | null;
 };
 
+const DND_TYPE = "TOUR_ROW";
+
 /* ================= HELPERS ================= */
 
 function toDatetimeLocal(value: string | null | undefined) {
   if (!value) return "";
   return value.slice(0, 16);
-}
-
-function focusNextInput(current: HTMLInputElement, direction: "down" | "right") {
-
-  const inputs = Array.from(
-    document.querySelectorAll<HTMLInputElement>("input")
-  );
-
-  const index = inputs.indexOf(current);
-
-  if (direction === "right") {
-    inputs[index + 1]?.focus();
-  }
-
-  if (direction === "down") {
-    inputs[index + 5]?.focus();
-  }
 }
 
 /* ================= PAGE ================= */
@@ -81,419 +70,409 @@ export default function WeekDetail() {
   const [tours, setTours] = useState<TourWithRelations[]>([]);
   const [values, setValues] = useState<Record<string, Record<string, string>>>({});
 
-  const [clipboard, setClipboard] = useState<string | null>(null);
-  const [activeEditors, setActiveEditors] = useState<Record<string,string>>({});
-
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [openDayId, setOpenDayId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
 
-  /* ================= UPDATE ================= */
+/* ================= UPDATE FUNCTIONS ================= */
 
-  async function updateTourField(tourId:string, field:string, value:any){
+async function updateTourField(
+  tourId: string,
+  field: string,
+  value: any
+) {
 
-    await supabase
-      .from("tours")
-      .update({ [field]: value })
-      .eq("id", tourId)
+  await supabase
+    .from("tours")
+    .update({ [field]: value })
+    .eq("id", tourId);
 
-  }
+}
 
-  async function updateColumnValue(
-    tourId:string,
-    columnId:string,
-    value:string
-  ){
+async function updateColumnValue(
+  tourId: string,
+  columnId: string,
+  value: string
+) {
 
-    await supabase
-      .from("tour_column_values")
-      .upsert({
-        tour_id: tourId,
-        column_id: columnId,
-        value: value
-      })
+  await supabase
+    .from("tour_column_values")
+    .upsert({
+      tour_id: tourId,
+      column_id: columnId,
+      value: value
+    });
 
-  }
+}
 
-  /* ================= LOAD ================= */
+/* ================= LOAD ================= */
 
-  useEffect(()=>{
+  useEffect(() => {
 
-    if(!weekId) return
+    if (!weekId) return;
 
-    ;(async()=>{
+    (async () => {
 
-      const { data:weekData } =
-        await supabase
+      const { data: weekData } = await supabase
         .from("planning_weeks")
         .select("*")
-        .eq("id",weekId)
-        .maybeSingle()
+        .eq("id", weekId)
+        .maybeSingle();
 
-      const { data:dayData } =
-        await supabase
+      const { data: dayData } = await supabase
         .from("planning_days")
         .select("*")
-        .eq("planning_week_id",weekId)
-        .order("date")
+        .eq("planning_week_id", weekId)
+        .order("date");
 
-      const { data:groupData } =
-        await supabase
+      const { data: groupData } = await supabase
         .from("column_groups")
         .select("*")
-        .eq("is_visible",true)
-        .order("order_index")
+        .eq("is_visible", true)
+        .order("order_index");
 
-      const { data:columnData } =
-        await supabase
+      const { data: columnData } = await supabase
         .from("tour_columns")
         .select("*")
-        .eq("is_visible",true)
-        .order("order_index")
+        .eq("is_visible", true)
+        .order("order_index");
 
-      const dayIds = (dayData ?? []).map(d=>d.id)
+      const dayIds = (dayData ?? []).map(d => d.id);
 
-      const { data:tourData } =
-        dayIds.length
+      const { data: tourData } =
+        dayIds.length > 0
           ? await supabase
-            .from("tours")
-            .select(`*, truck_types(id,name)`)
-            .in("planning_day_id",dayIds)
-            .order("position")
-          : { data:[] }
+              .from("tours")
+              .select(`*, truck_types (id,name)`)
+              .in("planning_day_id", dayIds)
+              .order("planning_day_id")
+              .order("position")
+          : { data: [] };
 
-      const tourIds = tourData?.map(t=>t.id) ?? []
+      const tourIds = tourData?.map(t => t.id) ?? [];
 
-      const { data:valueData } =
-        tourIds.length
+      const { data: valueData } =
+        tourIds.length > 0
           ? await supabase
-            .from("tour_column_values")
-            .select("*")
-            .in("tour_id",tourIds)
-          : { data:[] }
+              .from("tour_column_values")
+              .select("*")
+              .in("tour_id", tourIds)
+          : { data: [] };
 
-      const valueMap:Record<string,Record<string,string>> = {}
+      const valueMap: Record<string, Record<string, string>> = {};
 
-      ;(valueData as TourValue[]).forEach(v=>{
+      (valueData as TourValue[]).forEach(val => {
+        if (!val.tour_id || !val.column_id) return;
+        if (!valueMap[val.tour_id]) valueMap[val.tour_id] = {};
+        valueMap[val.tour_id][val.column_id] = val.value ?? "";
+      });
 
-        if(!v.tour_id || !v.column_id) return
+      setWeek(weekData ?? null);
+      setDays(dayData ?? []);
+      setGroups(groupData ?? []);
+      setColumns(columnData ?? []);
+      setTours((tourData ?? []) as TourWithRelations[]);
+      setValues(valueMap);
 
-        if(!valueMap[v.tour_id]) valueMap[v.tour_id] = {}
+      if (dayData?.length) {
+        const today = new Date().toISOString().slice(0, 10);
+        const todayDay = dayData.find(d => d.date === today);
 
-        valueMap[v.tour_id][v.column_id] = v.value ?? ""
-
-      })
-
-      setWeek(weekData ?? null)
-      setDays(dayData ?? [])
-      setGroups(groupData ?? [])
-      setColumns(columnData ?? [])
-      setTours((tourData ?? []) as TourWithRelations[])
-      setValues(valueMap)
-
-      if(dayData?.length){
-
-        const today = new Date().toISOString().slice(0,10)
-        const todayDay = dayData.find(d=>d.date === today)
-
-        const first = todayDay ?? dayData[0]
-
-        setSelectedDayId(first.id)
-        setOpenDayId(first.id)
-
+        if (todayDay) {
+          setSelectedDayId(todayDay.id);
+          setOpenDayId(todayDay.id);
+        } else {
+          setSelectedDayId(dayData[0].id);
+          setOpenDayId(dayData[0].id);
+        }
       }
 
-      setLoading(false)
+      setLoading(false);
 
-    })()
+    })();
 
-  },[weekId])
+  }, [weekId]);
 
-  /* ================= REALTIME ================= */
+/* ================= REALTIME ================= */
 
-  useEffect(()=>{
+useEffect(() => {
 
-    const channel = supabase.channel(`week-live-${weekId}`)
+  if (!weekId) return;
 
-    channel
+  const channel = supabase
+    .channel(`week-live-${weekId}`)
     .on(
       "postgres_changes",
-      { event:"*", schema:"public", table:"tours" },
-      payload=>{
+      { event: "*", schema: "public", table: "tours" },
+      payload => {
 
-        setTours(prev=>{
+        setTours(prev => {
 
-          if(payload.eventType === "INSERT"){
-            return [...prev, payload.new as TourWithRelations]
+          if (payload.eventType === "INSERT") {
+            return [...prev, payload.new as TourWithRelations];
           }
 
-          if(payload.eventType === "UPDATE"){
-            const updated = payload.new as TourWithRelations
-            return prev.map(t => t.id===updated.id ? updated : t)
+          if (payload.eventType === "UPDATE") {
+
+            const updated = payload.new as TourWithRelations;
+
+            return prev.map(t =>
+              t.id === updated.id
+                ? { ...t, ...updated }
+                : t
+            );
+
           }
 
-          if(payload.eventType === "DELETE"){
-            return prev.filter(t=>t.id !== payload.old.id)
+          if (payload.eventType === "DELETE") {
+            return prev.filter(t => t.id !== payload.old.id);
           }
 
-          return prev
+          return prev;
 
-        })
+        });
 
       }
     )
-    .on("broadcast",{event:"editing"}, payload=>{
+    .subscribe();
 
-      setActiveEditors(prev=>({
-        ...prev,
-        [payload.payload.cell]: payload.payload.user
-      }))
+  return () => {
+    supabase.removeChannel(channel);
+  };
 
-    })
-    .subscribe()
+}, [weekId]);
 
-    return ()=>{ supabase.removeChannel(channel) }
+/* ================= DERIVED ================= */
 
-  },[weekId])
+const visibleColumns = useMemo(
+  () => columns.filter(c => c.is_visible),
+  [columns]
+);
 
-  /* ================= DERIVED ================= */
+const columnsByGroup = useMemo(() => {
 
-  const visibleColumns =
-    useMemo(()=>columns.filter(c=>c.is_visible),[columns])
+  const map: Record<string, TourColumn[]> = {};
 
-  const columnsByGroup = useMemo(()=>{
+  groups.forEach(g => {
+    map[g.id] = [];
+  });
 
-    const map:Record<string,TourColumn[]> = {}
+  visibleColumns.forEach(col => {
+    if (!col.column_group_id) return;
+    map[col.column_group_id]?.push(col);
+  });
 
-    groups.forEach(g=>map[g.id] = [])
+  return map;
 
-    visibleColumns.forEach(col=>{
-      if(col.column_group_id)
-        map[col.column_group_id]?.push(col)
-    })
+}, [visibleColumns, groups]);
 
-    return map
+const toursByDay = useMemo(() => {
 
-  },[visibleColumns,groups])
+  const map: Record<string, TourWithRelations[]> = {};
 
-  const toursByDay = useMemo(()=>{
+  days.forEach(d => {
+    map[d.id] = [];
+  });
 
-    const map:Record<string,TourWithRelations[]> = {}
+  tours.forEach(t => {
+    if (!t.planning_day_id) return;
+    map[t.planning_day_id]?.push(t);
+  });
 
-    days.forEach(d=>map[d.id] = [])
+  return map;
 
-    tours.forEach(t=>{
-      if(t.planning_day_id)
-        map[t.planning_day_id]?.push(t)
-    })
+}, [days, tours]);
 
-    return map
+/* ================= CELL RENDER ================= */
 
-  },[days,tours])
+const renderCell = (tour: TourWithRelations, col: TourColumn) => {
 
-  /* ================= CELL ================= */
+  if (tour.cancelled) {
+    return <span className="tour-cancelled-text">storniert</span>;
+  }
 
-  const renderCell = (tour:TourWithRelations, col:TourColumn)=>{
+  switch (col.key) {
 
-    const value = values[tour.id]?.[col.id] ?? ""
-    const cellKey = `${tour.id}-${col.id}`
-    const editor = activeEditors[cellKey]
+    case "truck_number":
+      return (
+        <input
+          value={tour.truck_number ?? ""}
+          onChange={async e => {
+            const newValue = e.target.value;
+            await updateTourField(tour.id, "truck_number", newValue);
+          }}
+        />
+      );
 
-    return(
+    case "truck_type_id":
+      return <div>{tour.truck_types?.name ?? "-"}</div>;
 
-      <input
-        className={editor ? "cell-editing" : ""}
-        value={value}
-
-        onFocus={()=>{
-
-          supabase.channel(`week-live-${weekId}`).send({
-            type:"broadcast",
-            event:"editing",
-            payload:{
-              cell:cellKey,
-              user:"dispatcher"
-            }
-          })
-
-        }}
-
-        onKeyDown={(e)=>{
-
-          const target = e.target as HTMLInputElement
-
-          if(e.ctrlKey && e.key === "c"){
-            setClipboard(target.value)
-          }
-
-          if(e.ctrlKey && e.key === "v" && clipboard){
-            e.preventDefault()
-            updateColumnValue(tour.id,col.id,clipboard)
-          }
-
-          if(e.key === "Enter"){
-            e.preventDefault()
-            focusNextInput(target,"down")
-          }
-
-          if(e.key === "Tab"){
-            focusNextInput(target,"right")
-          }
-
-        }}
-
-        onChange={async e=>{
-
-          const newValue = e.target.value
-
-          setValues(prev=>({
-            ...prev,
-            [tour.id]:{
-              ...prev[tour.id],
-              [col.id]:newValue
-            }
-          }))
-
-          await updateColumnValue(tour.id,col.id,newValue)
-
-        }}
-
-      />
-
-    )
+    case "planned_arrival_werk1":
+      return (
+        <input
+          type="datetime-local"
+          value={toDatetimeLocal(tour.planned_arrival_werk1)}
+          onChange={async e => {
+            await updateTourField(
+              tour.id,
+              "planned_arrival_werk1",
+              e.target.value
+            );
+          }}
+        />
+      );
 
   }
 
-  /* ================= UI ================= */
+  const value = values[tour.id]?.[col.id] ?? "";
 
-  if(loading) return <div>Lade Woche...</div>
-  if(!week) return null
+  return (
+    <input
+      value={value}
+      onChange={async e => {
 
-  return(
+        const newValue = e.target.value;
 
-    <DndProvider backend={HTML5Backend}>
+        setValues(prev => ({
+          ...prev,
+          [tour.id]: {
+            ...prev[tour.id],
+            [col.id]: newValue
+          }
+        }));
 
-      <div className="week-container">
+        await updateColumnValue(tour.id, col.id, newValue);
 
-        <h1>KW {week.week_number} / {week.year}</h1>
+      }}
+    />
+  );
+};
 
-        <button
-          className="btn-primary"
-          onClick={()=>setModalOpen(true)}
-        >
-          + Tour hinzufügen
-        </button>
+/* ================= UI ================= */
 
-        {days.map(day=>{
+if (loading) return <div className="week-container">Lade Woche...</div>;
+if (!week) return null;
 
-          const dayTours = toursByDay[day.id] ?? []
-          const isOpen = openDayId === day.id
+return (
+  <DndProvider backend={HTML5Backend}>
 
-          return(
+    <div className="week-container">
 
-            <div key={day.id} className="day-card">
+      <h1>
+        KW {week.week_number} / {week.year}
+      </h1>
 
-              <div
-                className="day-header"
-                onClick={()=>{
+      <button
+        className="btn-primary"
+        onClick={() => setModalOpen(true)}
+      >
+        + Tour hinzufügen
+      </button>
 
-                  setOpenDayId(isOpen ? null : day.id)
-                  setSelectedDayId(day.id)
+      {days.map(day => {
 
-                }}
-              >
+        const dayTours = toursByDay[day.id] ?? [];
+        const isOpen = openDayId === day.id;
 
-                <div>
-                  {new Date(day.date).toLocaleDateString("de-DE",{
-                    weekday:"long",
-                    day:"2-digit",
-                    month:"2-digit"
-                  })}
-                </div>
+        return (
+          <div key={day.id} className="day-card">
 
-                <div className="day-count">
-                  {dayTours.length}
-                </div>
+            <div
+              className="day-header"
+              onClick={() => {
+                setOpenDayId(isOpen ? null : day.id);
+                setSelectedDayId(day.id);
+              }}
+            >
 
+              <div>
+                {new Date(day.date).toLocaleDateString("de-DE", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "2-digit"
+                })}
               </div>
 
-              {isOpen && (
-
-                <div className="table-wrapper">
-
-                  {groups.map(group=>{
-
-                    const groupColumns = columnsByGroup[group.id] ?? []
-                    if(!groupColumns.length) return null
-
-                    return(
-
-                      <table key={group.id} className="tour-table">
-
-                        <thead>
-
-                          <tr className="column-group-row">
-                            <th colSpan={groupColumns.length}>
-                              {group.name}
-                            </th>
-                          </tr>
-
-                          <tr>
-                            {groupColumns.map(col=>(
-                              <th key={col.id}>{col.label}</th>
-                            ))}
-                          </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                          {dayTours.map(tour=>(
-
-                            <tr key={tour.id}>
-
-                              {groupColumns.map(col=>(
-                                <td key={col.id}>
-                                  {renderCell(tour,col)}
-                                </td>
-                              ))}
-
-                            </tr>
-
-                          ))}
-
-                        </tbody>
-
-                      </table>
-
-                    )
-
-                  })}
-
-                </div>
-
-              )}
+              <div className="day-count">
+                {dayTours.length}
+              </div>
 
             </div>
 
-          )
+            {isOpen && (
 
-        })}
+              <div className="table-wrapper">
 
-        <NewTourModal
-          isOpen={modalOpen}
-          onClose={()=>setModalOpen(false)}
-          weekId={weekId}
-          dayId={selectedDayId}
-          days={days}
-        />
+                {groups.map(group => {
 
-      </div>
+                  const groupColumns = columnsByGroup[group.id] ?? [];
+                  if (!groupColumns.length) return null;
 
-    </DndProvider>
+                  return (
 
-  )
+                    <table key={group.id} className="tour-table">
 
+                      <thead>
+
+                        <tr className="column-group-row">
+                          <th colSpan={groupColumns.length}>
+                            {group.name}
+                          </th>
+                        </tr>
+
+                        <tr>
+                          {groupColumns.map(col => (
+                            <th key={col.id}>{col.label}</th>
+                          ))}
+                        </tr>
+
+                      </thead>
+
+                      <tbody>
+
+                        {dayTours.map(tour => (
+
+                          <tr key={tour.id}>
+
+                            {groupColumns.map(col => (
+                              <td key={col.id}>
+                                {renderCell(tour, col)}
+                              </td>
+                            ))}
+
+                          </tr>
+
+                        ))}
+
+                      </tbody>
+
+                    </table>
+
+                  );
+
+                })}
+
+              </div>
+
+            )}
+
+          </div>
+        );
+
+      })}
+
+      <NewTourModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        weekId={weekId}
+        dayId={selectedDayId}
+        days={days}
+      />
+
+    </div>
+
+  </DndProvider>
+);
 }
