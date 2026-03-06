@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ColumnType } from "@/types/database";
-import "../app/(app)/admin_backup/columns/admin.css";
+import "../app/(app)/admin/columns/admin.css";
 
 interface Props {
   isOpen: boolean;
