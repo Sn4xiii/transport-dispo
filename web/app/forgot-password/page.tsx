@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Truck, LogIn } from "lucide-react";
-import "./style.css";
+import { KeyRound, Mail, Truck } from "lucide-react";
+import "../login/style.css";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -42,17 +42,18 @@ export default function LoginPage() {
     };
   }, [router]);
 
-  async function login(e: React.FormEvent) {
+  async function resetPassword(e: React.FormEvent) {
     e.preventDefault();
-
     if (loading) return;
 
-    setError("");
     setLoading(true);
+    setError("");
+    setSuccess("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+    const redirectTo = `${window.location.origin}/reset-password`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo,
     });
 
     if (error) {
@@ -61,8 +62,10 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    setSuccess(
+      "Falls ein Konto existiert, wurde eine E-Mail zum Zurücksetzen des Passworts versendet."
+    );
+    setLoading(false);
   }
 
   if (checkingSession) {
@@ -89,41 +92,42 @@ export default function LoginPage() {
 
           <div className="login-brand-copy">
             <span className="login-kicker">Transit System</span>
-            <h1>Transport Dispo</h1>
+            <h1>Passwort zurücksetzen</h1>
             <p>
-              Planung, Rollen, Touren und Wochenübersichten an einem Ort.
+              Fordere einen sicheren Reset-Link an, um wieder Zugriff auf dein
+              Konto zu bekommen.
             </p>
           </div>
 
           <div className="login-brand-features">
             <div className="login-feature">
-              <strong>Dispo</strong>
-              <span>Wochenplanung und Tourensteuerung</span>
+              <strong>Sicher</strong>
+              <span>Reset-Link wird per E-Mail verschickt</span>
             </div>
 
             <div className="login-feature">
-              <strong>Admin</strong>
-              <span>Benutzer, Rollen und Berechtigungen</span>
+              <strong>Einfach</strong>
+              <span>Nur E-Mail eingeben und Anleitung folgen</span>
             </div>
 
             <div className="login-feature">
-              <strong>Live</strong>
-              <span>Schnelles Arbeiten im Tagesgeschäft</span>
+              <strong>Schnell</strong>
+              <span>Wieder direkt ins System zurück</span>
             </div>
           </div>
         </div>
 
         <div className="login-card">
           <div className="login-card-head">
-            <h2>Willkommen zurück</h2>
-            <p>Melde dich mit deinem Konto an.</p>
+            <h2>Passwort vergessen</h2>
+            <p>Gib deine E-Mail ein und wir senden dir einen Reset-Link.</p>
           </div>
 
-          <form onSubmit={login} className="login-form">
+          <form onSubmit={resetPassword} className="login-form">
             <div className="login-field">
-              <label htmlFor="email">E-Mail</label>
+              <label htmlFor="forgot-email">E-Mail</label>
               <input
-                id="email"
+                id="forgot-email"
                 type="email"
                 placeholder="name@firma.de"
                 value={email}
@@ -133,45 +137,17 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="login-field">
-              <label htmlFor="password">Passwort</label>
-
-              <div className="login-password-wrap">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Passwort eingeben"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-
-                <button
-                  type="button"
-                  className="login-password-toggle"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
             {error && <div className="login-error">{error}</div>}
+            {success && <div className="login-success">{success}</div>}
 
             <button type="submit" className="login-submit" disabled={loading}>
-              <LogIn size={18} />
-              <span>{loading ? "Meldet an..." : "Login"}</span>
+              <Mail size={18} />
+              <span>{loading ? "Sende..." : "Reset-Link senden"}</span>
             </button>
-              <div className="login-links-row">
-              <a href="/forgot-password" className="login-link-inline">
-                Passwort vergessen?
-              </a>
-              <a href="/register" className="login-link-inline">
-                Account erstellen
-              </a>
-            </div>
+
+            <a href="/login" className="login-link-inline">
+              Zurück zum Login
+            </a>
           </form>
         </div>
       </div>

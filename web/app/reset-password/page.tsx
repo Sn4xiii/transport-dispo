@@ -3,55 +3,66 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Truck, LogIn } from "lucide-react";
-import "./style.css";
+import { Eye, EyeOff, KeyRound, Truck } from "lucide-react";
+import "../login/style.css";
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checking, setChecking] = useState(true);
+
+  const [password, setPassword] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     let active = true;
 
-    async function checkSession() {
+    async function init() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!active) return;
 
-      if (session) {
-        router.replace("/");
-        router.refresh();
-        return;
+      if (!session) {
+        setError("Kein gültiger Reset-Kontext gefunden. Bitte Link aus der E-Mail erneut öffnen.");
       }
 
-      setCheckingSession(false);
+      setChecking(false);
     }
 
-    checkSession();
+    init();
 
     return () => {
       active = false;
     };
-  }, [router]);
+  }, []);
 
-  async function login(e: React.FormEvent) {
+  async function updatePassword(e: React.FormEvent) {
     e.preventDefault();
-
     if (loading) return;
 
     setError("");
+    setSuccess("");
+
+    if (password.length < 6) {
+      setError("Das Passwort muss mindestens 6 Zeichen lang sein.");
+      return;
+    }
+
+    if (password !== repeatPassword) {
+      setError("Die Passwörter stimmen nicht überein.");
+      return;
+    }
+
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+    const { error } = await supabase.auth.updateUser({
       password,
     });
 
@@ -61,16 +72,20 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    setSuccess("Passwort wurde erfolgreich geändert. Du kannst dich jetzt anmelden.");
+    setLoading(false);
+
+    setTimeout(() => {
+      router.replace("/login");
+    }, 1200);
   }
 
-  if (checkingSession) {
+  if (checking) {
     return (
       <div className="login-page">
         <div className="login-card login-card-loading">
           <div className="login-loader" />
-          <p>Prüfe Anmeldung...</p>
+          <p>Prüfe Reset-Link...</p>
         </div>
       </div>
     );
@@ -89,89 +104,78 @@ export default function LoginPage() {
 
           <div className="login-brand-copy">
             <span className="login-kicker">Transit System</span>
-            <h1>Transport Dispo</h1>
+            <h1>Neues Passwort setzen</h1>
             <p>
-              Planung, Rollen, Touren und Wochenübersichten an einem Ort.
+              Wähle ein neues Passwort für dein Konto und logge dich danach
+              wieder ein.
             </p>
           </div>
 
           <div className="login-brand-features">
             <div className="login-feature">
-              <strong>Dispo</strong>
-              <span>Wochenplanung und Tourensteuerung</span>
+              <strong>Reset</strong>
+              <span>Passwort sicher neu vergeben</span>
             </div>
 
             <div className="login-feature">
-              <strong>Admin</strong>
-              <span>Benutzer, Rollen und Berechtigungen</span>
+              <strong>Kontoschutz</strong>
+              <span>Nur über deinen gültigen Reset-Link</span>
             </div>
 
             <div className="login-feature">
-              <strong>Live</strong>
-              <span>Schnelles Arbeiten im Tagesgeschäft</span>
+              <strong>Direkt weiter</strong>
+              <span>Nach Änderung zurück zum Login</span>
             </div>
           </div>
         </div>
 
         <div className="login-card">
           <div className="login-card-head">
-            <h2>Willkommen zurück</h2>
-            <p>Melde dich mit deinem Konto an.</p>
+            <h2>Neues Passwort</h2>
+            <p>Vergib jetzt ein neues Passwort für dein Konto.</p>
           </div>
 
-          <form onSubmit={login} className="login-form">
+          <form onSubmit={updatePassword} className="login-form">
             <div className="login-field">
-              <label htmlFor="email">E-Mail</label>
-              <input
-                id="email"
-                type="email"
-                placeholder="name@firma.de"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-              />
-            </div>
-
-            <div className="login-field">
-              <label htmlFor="password">Passwort</label>
-
+              <label htmlFor="new-password">Neues Passwort</label>
               <div className="login-password-wrap">
                 <input
-                  id="password"
+                  id="new-password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Passwort eingeben"
+                  placeholder="Neues Passwort"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
                   required
                 />
-
                 <button
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
+            <div className="login-field">
+              <label htmlFor="repeat-password">Passwort wiederholen</label>
+              <input
+                id="repeat-password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Passwort wiederholen"
+                value={repeatPassword}
+                onChange={(e) => setRepeatPassword(e.target.value)}
+                required
+              />
+            </div>
+
             {error && <div className="login-error">{error}</div>}
+            {success && <div className="login-success">{success}</div>}
 
             <button type="submit" className="login-submit" disabled={loading}>
-              <LogIn size={18} />
-              <span>{loading ? "Meldet an..." : "Login"}</span>
+              <KeyRound size={18} />
+              <span>{loading ? "Speichert..." : "Passwort speichern"}</span>
             </button>
-              <div className="login-links-row">
-              <a href="/forgot-password" className="login-link-inline">
-                Passwort vergessen?
-              </a>
-              <a href="/register" className="login-link-inline">
-                Account erstellen
-              </a>
-            </div>
           </form>
         </div>
       </div>
