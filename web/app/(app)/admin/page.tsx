@@ -76,61 +76,60 @@ export default function AdminPage(){
 
   /* ================= LOAD ================= */
 
-  async function load(){
-
-    setLoading(true)
-
-    const { data:usersData } =
-      await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at",{ascending:false})
-
-    if(usersData) setUsers(usersData)
-
-    const { data:rolesData } =
-      await supabase.from("roles").select("*")
-
-    if(rolesData) setRoles(rolesData)
-
-    const { data:permissionsData } =
-      await supabase.from("permissions").select("*")
-
-    if(permissionsData) setPermissions(permissionsData)
-
-    const { data:rpData } =
-      await supabase
-        .from("role_permissions")
-        .select(`
-          role_id,
-          permission_id,
-          permissions (*)
-        `)
-
-    if(rpData) setRolePermissions(rpData)
-
-    const { data:groupsData } =
-      await supabase
-        .from("column_groups")
-        .select("*")
-        .order("position")
-
-    if(groupsData) setColumnGroups(groupsData)
-
-    const { data:columnsData } =
-      await supabase
-        .from("tour_columns")
-        .select("*")
-        .order("position")
-
-    if(columnsData) setColumns(columnsData)
-
-    setLoading(false)
-
-  }
-
   useEffect(()=>{
+
+    async function load(){
+
+      setLoading(true)
+
+      const { data:usersData } =
+        await supabase.from("profiles").select("*")
+
+      if(usersData) setUsers(usersData)
+
+      const { data:rolesData } =
+        await supabase.from("roles").select("*")
+
+      if(rolesData) setRoles(rolesData)
+
+      const { data:permissionsData } =
+        await supabase.from("permissions").select("*")
+
+      if(permissionsData) setPermissions(permissionsData)
+
+      const { data:rpData } =
+        await supabase
+          .from("role_permissions")
+          .select(`
+            role_id,
+            permission_id,
+            permissions (*)
+          `)
+
+      if(rpData) setRolePermissions(rpData)
+
+      const { data:groupsData } =
+        await supabase
+          .from("column_groups")
+          .select("*")
+          .order("position")
+
+      if(groupsData) setColumnGroups(groupsData)
+
+      const { data:columnsData } =
+        await supabase
+          .from("tour_columns")
+          .select("*")
+          .order("position")
+
+      if(columnsData) setColumns(columnsData)
+
+      setLoading(false)
+
+    }
+
     load()
+
   },[])
 
   /* ================= USER SEARCH ================= */
@@ -190,37 +189,17 @@ export default function AdminPage(){
 
     if(!newEmail) return
 
-    try{
+    await fetch("/backend/create-user",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({ email:newEmail })
+    })
+    .then(res=>res.json())
+    .then(data=>console.log(data))
 
-      const res = await fetch("/backend/create-user",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({ email:newEmail })
-      })
-
-      const data = await res.json()
-
-      console.log(data)
-
-      if(!res.ok){
-        alert(data.error || "User konnte nicht erstellt werden")
-        return
-      }
-
-      setNewEmail("")
-
-      /* USERS NEU LADEN */
-
-      await load()
-
-    }catch(err){
-
-      console.error(err)
-      alert("Server Fehler")
-
-    }
+    setNewEmail("")
 
   }
 
@@ -538,6 +517,193 @@ export default function AdminPage(){
             </tbody>
 
           </table>
+
+        </div>
+
+      )}
+
+      {/* ROLES */}
+
+      {tab==="roles" && (
+
+        <div>
+
+          <div className="admin-toolbar">
+
+            <input
+              placeholder="New Role"
+              value={newRole}
+              onChange={e=>setNewRole(e.target.value)}
+            />
+
+            <button className="btn-primary" onClick={createRole}>
+              Create Role
+            </button>
+
+          </div>
+
+          <ul className="admin-roles">
+
+            {roles.map(role=>(
+
+              <li key={role.id}>
+
+                {role.name}
+
+                <button
+                  className="btn-danger"
+                  onClick={()=>deleteRole(role.id)}
+                >
+                  Delete
+                </button>
+
+              </li>
+
+            ))}
+
+          </ul>
+
+        </div>
+
+      )}
+
+      {/* PERMISSIONS */}
+
+      {tab==="permissions" && (
+
+        <div>
+
+          {roles.map(role=>(
+
+            <div key={role.id} className="permission-role">
+
+              <h3>{role.name}</h3>
+
+              <div className="permission-grid">
+
+                {permissions.map(permission=>(
+
+                  <label key={permission.id}>
+
+                    <input
+                      type="checkbox"
+                      checked={
+                        hasPermission(
+                          role.id,
+                          permission.id
+                        )
+                      }
+                      onChange={()=>
+                        togglePermission(role.id,permission)
+                      }
+                    />
+
+                    {permission.label || permission.key}
+
+                  </label>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
+
+      {/* COLUMNS */}
+
+      {tab==="columns" && (
+
+        <div>
+
+          <h2>Column Groups</h2>
+
+          <div className="admin-toolbar">
+
+            <input
+              placeholder="New Group"
+              value={newGroup}
+              onChange={e=>setNewGroup(e.target.value)}
+            />
+
+            <button
+              className="btn-primary"
+              onClick={createGroup}
+            >
+              Create Group
+            </button>
+
+          </div>
+
+          {columnGroups.map(group=>(
+
+            <div key={group.id}>
+
+              <h3>{group.name}</h3>
+
+              <ul>
+
+                {columns
+                  .filter(c=>c.column_group_id===group.id)
+                  .map(col=>(
+
+                  <li key={col.id}>
+
+                    {col.label}
+
+                    <button
+                      onClick={()=>toggleColumn(col.id,col.is_visible)}
+                    >
+                      {col.is_visible ? "Hide":"Show"}
+                    </button>
+
+                  </li>
+
+                ))}
+
+              </ul>
+
+            </div>
+
+          ))}
+
+          <h2 style={{marginTop:40}}>Create Column</h2>
+
+          <div className="admin-toolbar">
+
+            <input
+              placeholder="Column Label"
+              value={newColumn}
+              onChange={e=>setNewColumn(e.target.value)}
+            />
+
+            <select
+              value={selectedGroup}
+              onChange={e=>setSelectedGroup(e.target.value)}
+            >
+
+              <option value="">Select Group</option>
+
+              {columnGroups.map(g=>(
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+
+            </select>
+
+            <button
+              className="btn-primary"
+              onClick={createColumn}
+            >
+              Create Column
+            </button>
+
+          </div>
 
         </div>
 
