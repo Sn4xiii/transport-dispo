@@ -11,9 +11,6 @@ import {
   Truck,
   Users,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
-  PanelLeftClose,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -37,21 +34,6 @@ const iconMap: Record<string, LucideIcon> = {
   Users,
 };
 
-function getSectionTitle(section: string) {
-  switch (section) {
-    case "main":
-      return "";
-    case "dispo":
-      return "Dispo";
-    case "admin":
-      return "Admin";
-    case "system":
-      return "System";
-    default:
-      return section;
-  }
-}
-
 export default function SidebarLayout({
   children,
 }: {
@@ -65,7 +47,6 @@ export default function SidebarLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navItems, setNavItems] = useState<NavigationItem[]>([]);
-  const [loadingNav, setLoadingNav] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -83,8 +64,6 @@ export default function SidebarLayout({
 
   useEffect(() => {
     async function loadNav() {
-      setLoadingNav(true);
-
       const { data, error } = await supabase
         .from("navigation")
         .select("*")
@@ -93,12 +72,10 @@ export default function SidebarLayout({
 
       if (error) {
         console.error("Navigation load error:", error);
-        setLoadingNav(false);
         return;
       }
 
       setNavItems(data ?? []);
-      setLoadingNav(false);
     }
 
     loadNav();
@@ -112,86 +89,86 @@ export default function SidebarLayout({
     return navItems.filter((item) => can(item.permission_key));
   }, [navItems, can]);
 
-  const groupedItems = useMemo(() => {
-    const groups = new Map<string, NavigationItem[]>();
-
-    for (const item of visibleItems) {
-      const existing = groups.get(item.section) ?? [];
-      existing.push(item);
-      groups.set(item.section, existing);
-    }
-
-    return Array.from(groups.entries());
-  }, [visibleItems]);
-
-  const isActivePath = (href: string) => {
+  function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(`${href}/`);
-  };
+  }
 
-  const handleLogout = async () => {
+  function renderSection(section: string, title?: string) {
+    const items = visibleItems.filter((item) => item.section === section);
+
+    if (items.length === 0) return null;
+
+    return (
+      <div className="nav-section">
+        {title && sidebarOpen && (
+          <div className="nav-section-title">{title}</div>
+        )}
+
+        {items.map((item) => {
+          const Icon = iconMap[item.icon] ?? Settings;
+          const active = isActive(item.path);
+
+          return (
+            <Link
+              key={item.id}
+              href={item.path}
+              className={`nav-item ${active ? "active" : ""}`}
+              onClick={() => setMobileOpen(false)}
+              title={!sidebarOpen ? item.label : undefined}
+            >
+              <Icon size={18} />
+              {sidebarOpen && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </div>
+    );
+  }
+
+  async function handleLogout() {
     try {
       await supabase.auth.signOut();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      window.localStorage.removeItem("token");
+      localStorage.removeItem("token");
       router.push("/login");
       router.refresh();
     }
-  };
+  }
 
-  const renderNavItem = (item: NavigationItem) => {
-    const Icon = iconMap[item.icon] ?? Settings;
-    const active = isActivePath(item.path);
-
+  if (!mounted) {
     return (
-      <Link
-        key={item.id}
-        href={item.path}
-        className={`nav-item ${active ? "active" : ""}`}
-        title={!sidebarOpen ? item.label : undefined}
-      >
-        <span className="nav-item-icon">
-          <Icon size={18} />
-        </span>
-
-        {sidebarOpen && <span className="nav-item-label">{item.label}</span>}
-      </Link>
+      <div className="layout">
+        <div className="main">
+          <header className="header">
+            <h1>Transportplan Pilsen & Barsinghausen</h1>
+          </header>
+          <main className="content">
+            <div className="card">{children}</div>
+          </main>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
-    <div className="app-shell">
+    <div className="layout">
       {mobileOpen && (
-        <button
-          type="button"
-          className="sidebar-overlay"
-          aria-label="Sidebar schließen"
+        <div
+          className="overlay"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
-        className={[
-          "sidebar",
-          sidebarOpen ? "open" : "closed",
-          mobileOpen ? "mobile-open" : "",
-        ].join(" ")}
+        className={`sidebar ${sidebarOpen ? "open" : "closed"} ${
+          mobileOpen ? "mobile-open" : ""
+        }`}
       >
         <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <div className="sidebar-brand-badge">
-              <Truck size={18} />
-            </div>
-
-            {sidebarOpen && (
-              <div className="sidebar-brand-text">
-                <strong>Transitplan</strong>
-                <span>Dispo System</span>
-              </div>
-            )}
-          </div>
+          {sidebarOpen && <h3>Transitplan</h3>}
 
           <button
             type="button"
@@ -199,86 +176,59 @@ export default function SidebarLayout({
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label={sidebarOpen ? "Sidebar einklappen" : "Sidebar ausklappen"}
           >
-            {sidebarOpen ? <PanelLeftClose size={18} /> : <ChevronRight size={18} />}
+            <Menu size={18} />
           </button>
         </div>
 
-        <div className="sidebar-content">
-          <nav className="nav">
-            {loadingNav && (
-              <div className="nav-loading">
-                {sidebarOpen ? "Navigation wird geladen..." : "..."}
-              </div>
-            )}
+        <nav className="nav">
+          {renderSection("main")}
+          {renderSection("dispo", "Dispo")}
+          {renderSection("admin", "Admin")}
+          {renderSection("system", "System")}
+        </nav>
 
-            {!loadingNav &&
-              groupedItems.map(([section, items]) => (
-                <div key={section} className="nav-section">
-                  {sidebarOpen && getSectionTitle(section) && (
-                    <div className="nav-section-title">{getSectionTitle(section)}</div>
-                  )}
-
-                  <div className="nav-section-items">
-                    {items.map(renderNavItem)}
-                  </div>
-                </div>
-              ))}
-
-            {!loadingNav && groupedItems.length === 0 && (
-              <div className="nav-empty">
-                {sidebarOpen ? "Keine Navigation verfügbar." : "—"}
-              </div>
-            )}
-          </nav>
-        </div>
-
-        <div className="sidebar-bottom">
+        <div className="sidebar-logout">
           <button
             type="button"
             className="logout-button"
             onClick={handleLogout}
             title={!sidebarOpen ? "Logout" : undefined}
           >
-            <LogOut size={18} />
-            {sidebarOpen && <span>Logout</span>}
+            {sidebarOpen ? (
+              "Logout"
+            ) : (
+              <LogOut size={18} />
+            )}
           </button>
+        </div>
 
-          {sidebarOpen && (
-            <div className="sidebar-footer">
-              <span>Transit v1.0</span>
-              <small>by Mike</small>
-            </div>
-          )}
+        <div className="sidebar-footer">
+          <span>{sidebarOpen ? "Transit v1.0 by Mike" : "v1.0"}</span>
         </div>
       </aside>
 
-      <div className="main-area">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button
-              type="button"
-              className="mobile-menu-btn"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Menü öffnen"
-            >
-              <Menu size={20} />
-            </button>
+      <div className="main">
+        <header className="header">
+          <button
+            type="button"
+            className="mobile-menu"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Menü öffnen"
+          >
+            <Menu size={20} />
+          </button>
 
-            <div className="topbar-title-wrap">
-              <h1 className="topbar-title">Transportplan Pilsen & Barsinghausen</h1>
-              <p className="topbar-subtitle">Disposition & Wochenplanung</p>
-            </div>
-          </div>
+          <h1>Transportplan Pilsen & Barsinghausen</h1>
 
-          <div className="topbar-right">
-            <Link href="/settings" className="topbar-settings" title="Einstellungen">
-              <Settings size={18} />
+          <div className="header-actions">
+            <Link href="/settings" className="header-btn" aria-label="Settings">
+              <Settings size={16} />
             </Link>
           </div>
         </header>
 
-        <main className="page-content">
-          <div className="page-card">{children}</div>
+        <main className="content">
+          <div className="card">{children}</div>
         </main>
       </div>
     </div>
