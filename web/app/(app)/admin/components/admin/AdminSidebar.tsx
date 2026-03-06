@@ -1,38 +1,30 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export default function AdminSidebar(){
 
-const router = useRouter()
+const [tab,setTab] = useState("users")
 
 return(
 
-<div className="admin-sidebar">
+<div className="sidebar">
 
-<h2 className="logo">
-DISPO ADMIN
-</h2>
-
-<nav>
-
-<button onClick={()=>router.push("/admin?tab=users")}>
+<button onClick={()=>setTab("users")}>
 Users
 </button>
 
-<button onClick={()=>router.push("/admin?tab=roles")}>
+<button onClick={()=>setTab("roles")}>
 Roles
 </button>
 
-<button onClick={()=>router.push("/admin?tab=permissions")}>
+<button onClick={()=>setTab("permissions")}>
 Permissions
 </button>
 
-<button onClick={()=>router.push("/admin?tab=columns")}>
+<button onClick={()=>setTab("columns")}>
 Columns
 </button>
-
-</nav>
 
 </div>
 

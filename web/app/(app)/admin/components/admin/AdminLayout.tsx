@@ -2,20 +2,28 @@
 
 import AdminSidebar from "./AdminSidebar"
 
-import AdminHeader from "./AdminHeader"
 export default function AdminLayout({
   children
 }:{children:React.ReactNode}){
 
 return(
 
-<div className="admin-layout">
+<div className="admin">
 
 <AdminSidebar/>
 
 <div className="admin-main">
 
-<AdminHeader/>
+<header className="admin-header">
+
+<h1>DISPO ADMIN</h1>
+
+<input
+placeholder="Search..."
+className="admin-search"
+/>
+
+</header>
 
 <div className="admin-content">
 
