@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -10,8 +10,12 @@ import {
   Settings,
   Truck,
   Users,
-  LucideIcon
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase-browser";
 import "./layout.css";
@@ -30,205 +34,253 @@ const iconMap: Record<string, LucideIcon> = {
   CalendarDays,
   Settings,
   Truck,
-  Users
+  Users,
 };
+
+function getSectionTitle(section: string) {
+  switch (section) {
+    case "main":
+      return "";
+    case "dispo":
+      return "Dispo";
+    case "admin":
+      return "Admin";
+    case "system":
+      return "System";
+    default:
+      return section;
+  }
+}
 
 export default function SidebarLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-
   const pathname = usePathname();
+  const router = useRouter();
   const { can } = usePermissions();
 
-  /* Sidebar Zustand (SSR-safe) */
-
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-
-    const saved = localStorage.getItem("sidebarOpen");
-
-    if (saved === null) return true;
-
-    return saved === "true";
-  });
-
+  const [mounted, setMounted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navItems, setNavItems] = useState<NavigationItem[]>([]);
-
-  /* Sidebar Zustand speichern */
-
-  useEffect(() => {
-    localStorage.setItem("sidebarOpen", String(sidebarOpen));
-  }, [sidebarOpen]);
-
-  /* Navigation aus DB laden */
+  const [loadingNav, setLoadingNav] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
 
+    const saved = window.localStorage.getItem("sidebarOpen");
+    if (saved !== null) {
+      setSidebarOpen(saved === "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    window.localStorage.setItem("sidebarOpen", String(sidebarOpen));
+  }, [mounted, sidebarOpen]);
+
+  useEffect(() => {
     async function loadNav() {
+      setLoadingNav(true);
 
       const { data, error } = await supabase
         .from("navigation")
         .select("*")
-        .order("section");
+        .order("section")
+        .order("label");
 
       if (error) {
         console.error("Navigation load error:", error);
+        setLoadingNav(false);
         return;
       }
 
       setNavItems(data ?? []);
-
+      setLoadingNav(false);
     }
 
     loadNav();
-
   }, []);
 
-  /* einzelnes Nav Item */
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
-  const navItem = (
-    key: string,
-    href: string,
-    label: string,
-    Icon: LucideIcon
-  ) => {
+  const visibleItems = useMemo(() => {
+    return navItems.filter((item) => can(item.permission_key));
+  }, [navItems, can]);
 
-    const active = pathname.startsWith(href);
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, NavigationItem[]>();
+
+    for (const item of visibleItems) {
+      const existing = groups.get(item.section) ?? [];
+      existing.push(item);
+      groups.set(item.section, existing);
+    }
+
+    return Array.from(groups.entries());
+  }, [visibleItems]);
+
+  const isActivePath = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      window.localStorage.removeItem("token");
+      router.push("/login");
+      router.refresh();
+    }
+  };
+
+  const renderNavItem = (item: NavigationItem) => {
+    const Icon = iconMap[item.icon] ?? Settings;
+    const active = isActivePath(item.path);
 
     return (
       <Link
-        key={key}
-        href={href}
+        key={item.id}
+        href={item.path}
         className={`nav-item ${active ? "active" : ""}`}
-        onClick={() => setMobileOpen(false)}
+        title={!sidebarOpen ? item.label : undefined}
       >
-        <Icon size={18} />
-        {sidebarOpen && <span>{label}</span>}
+        <span className="nav-item-icon">
+          <Icon size={18} />
+        </span>
+
+        {sidebarOpen && <span className="nav-item-label">{item.label}</span>}
       </Link>
     );
   };
 
-  /* Navigation Section */
-
-  const handleLogout = () => {
-      // z.B. Token löschen
-      localStorage.removeItem("token");
-
-      // optional redirect
-      window.location.href = "/login";
-    };
-
-  const renderSection = (section: string, title?: string) => {
-
-    const items = navItems.filter(
-      item =>
-        item.section === section &&
-        can(item.permission_key)
-    );
-
-    if (items.length === 0) return null;
-
-    return (
-
-      <div className="nav-section">
-
-        {title && (
-          <div className="nav-section-title">
-            {title}
-          </div>
-        )}
-
-        {items.map(item => {
-
-          const Icon = iconMap[item.icon] ?? Settings;
-
-          return navItem(
-            item.id,
-            item.path,
-            item.label,
-            Icon
-          );
-
-        })}
-
-      </div>
-
-    );
-
-  };
-
   return (
-
-    <div className="layout">
-
-      {/* SIDEBAR */}
+    <div className="app-shell">
+      {mobileOpen && (
+        <button
+          type="button"
+          className="sidebar-overlay"
+          aria-label="Sidebar schließen"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
       <aside
-        className={`sidebar ${sidebarOpen ? "open" : "closed"} ${
-          mobileOpen ? "mobile-open" : ""
-        }`}
+        className={[
+          "sidebar",
+          sidebarOpen ? "open" : "closed",
+          mobileOpen ? "mobile-open" : "",
+        ].join(" ")}
       >
-
         <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-badge">
+              <Truck size={18} />
+            </div>
 
-          {sidebarOpen && <h3>Transitplan</h3>}
+            {sidebarOpen && (
+              <div className="sidebar-brand-text">
+                <strong>Transitplan</strong>
+                <span>Dispo System</span>
+              </div>
+            )}
+          </div>
 
           <button
+            type="button"
             className="toggle-btn"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            aria-label={sidebarOpen ? "Sidebar einklappen" : "Sidebar ausklappen"}
           >
-            <Menu size={18} />
-          </button>
-
-        </div>
-
-        <nav className="nav">
-          {renderSection("main")}
-          {renderSection("dispo", "Dispo")}
-          {renderSection("admin", "Admin")}
-          {renderSection("system", "System")}
-        </nav>
-
-        <div className="sidebar-logout">
-          <button className="logout-button" onClick={handleLogout}>
-            Logout
+            {sidebarOpen ? <PanelLeftClose size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
 
-        <div className="sidebar-footer">
-          <span>Transit v1.0 by Mike</span>
+        <div className="sidebar-content">
+          <nav className="nav">
+            {loadingNav && (
+              <div className="nav-loading">
+                {sidebarOpen ? "Navigation wird geladen..." : "..."}
+              </div>
+            )}
+
+            {!loadingNav &&
+              groupedItems.map(([section, items]) => (
+                <div key={section} className="nav-section">
+                  {sidebarOpen && getSectionTitle(section) && (
+                    <div className="nav-section-title">{getSectionTitle(section)}</div>
+                  )}
+
+                  <div className="nav-section-items">
+                    {items.map(renderNavItem)}
+                  </div>
+                </div>
+              ))}
+
+            {!loadingNav && groupedItems.length === 0 && (
+              <div className="nav-empty">
+                {sidebarOpen ? "Keine Navigation verfügbar." : "—"}
+              </div>
+            )}
+          </nav>
         </div>
 
+        <div className="sidebar-bottom">
+          <button
+            type="button"
+            className="logout-button"
+            onClick={handleLogout}
+            title={!sidebarOpen ? "Logout" : undefined}
+          >
+            <LogOut size={18} />
+            {sidebarOpen && <span>Logout</span>}
+          </button>
+
+          {sidebarOpen && (
+            <div className="sidebar-footer">
+              <span>Transit v1.0</span>
+              <small>by Mike</small>
+            </div>
+          )}
+        </div>
       </aside>
 
-      {/* MAIN */}
+      <div className="main-area">
+        <header className="topbar">
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Menü öffnen"
+            >
+              <Menu size={20} />
+            </button>
 
-      <div className="main">
+            <div className="topbar-title-wrap">
+              <h1 className="topbar-title">Transportplan Pilsen & Barsinghausen</h1>
+              <p className="topbar-subtitle">Disposition & Wochenplanung</p>
+            </div>
+          </div>
 
-        <header className="header">
-
-          <button
-            className="mobile-menu"
-            onClick={() => setMobileOpen(true)}
-          >
-            <Menu size={20} />
-          </button>
-
-          <h1>Transportplan Pilsen & Barsinghausen</h1>
-
+          <div className="topbar-right">
+            <Link href="/settings" className="topbar-settings" title="Einstellungen">
+              <Settings size={18} />
+            </Link>
+          </div>
         </header>
 
-        <main className="content">
-          <div className="card">{children}</div>
+        <main className="page-content">
+          <div className="page-card">{children}</div>
         </main>
-
       </div>
-
     </div>
-
   );
-
 }
