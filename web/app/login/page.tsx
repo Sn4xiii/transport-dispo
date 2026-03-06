@@ -158,13 +158,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && <div className="login-error">{error}</div>}
-
-            <button type="submit" className="login-submit" disabled={loading}>
-              <LogIn size={18} />
-              <span>{loading ? "Meldet an..." : "Login"}</span>
-            </button>
-              <div className="login-links-row">
+            <div className="login-links-row">
               <a href="/forgot-password" className="login-link-inline">
                 Passwort vergessen?
               </a>
@@ -172,6 +166,14 @@ export default function LoginPage() {
                 Account erstellen
               </a>
             </div>
+
+            {error && <div className="login-error">{error}</div>}
+
+            <button type="submit" className="login-submit" disabled={loading}>
+              <LogIn size={18} />
+              <span>{loading ? "Meldet an..." : "Login"}</span>
+            </button>
+              
           </form>
         </div>
       </div>
