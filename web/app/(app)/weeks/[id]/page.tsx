@@ -119,6 +119,8 @@ type DragItem = {
 
 type BulkMode = "system" | "custom";
 
+type MenuDirection = "up" | "down";
+
 const DND_TYPE = "TOUR_ROW";
 
 /* ================= HELPERS ================= */
@@ -248,11 +250,36 @@ export default function WeekDetail() {
   const [bulkColumnId, setBulkColumnId] = useState("");
   const [bulkValue, setBulkValue] = useState("");
   const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
+  const [menuDirectionByTour, setMenuDirectionByTour] = useState<Record<string, MenuDirection>>({});
 
   const [openDayId, setOpenDayId] = useState<string | null>(null);
   const [expandAllDays, setExpandAllDays] = useState(false);
 
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [groupVisibility, setGroupVisibility] = useState<Record<string, boolean>>({});
+  const [settingsUserKey, setSettingsUserKey] = useState<string>("anonymous");
+
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  /* ================= USER SETTINGS KEY ================= */
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUserKey() {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? "anonymous";
+      if (mounted) {
+        setSettingsUserKey(uid);
+      }
+    }
+
+    loadUserKey();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   /* ================= LOAD ================= */
 
@@ -340,6 +367,13 @@ export default function WeekDetail() {
       const firstCustomColumn = (columnData ?? []).find((c) => !(c as any).is_system);
 
       setBulkColumnId(firstSystemColumn?.id ?? firstCustomColumn?.id ?? "");
+
+      const initialGroupVisibility: Record<string, boolean> = {};
+      (groupData ?? []).forEach((g) => {
+        initialGroupVisibility[g.id] = true;
+      });
+      setGroupVisibility(initialGroupVisibility);
+
       setLoading(false);
     }
 
@@ -350,21 +384,63 @@ export default function WeekDetail() {
     };
   }, [weekId]);
 
+  /* ================= LOAD / SAVE GROUP VISIBILITY ================= */
+
+  useEffect(() => {
+    if (!groups.length) return;
+
+    const storageKey = `week-group-visibility:${settingsUserKey}`;
+    const raw = localStorage.getItem(storageKey);
+
+    if (!raw) {
+      const defaults: Record<string, boolean> = {};
+      groups.forEach((g) => {
+        defaults[g.id] = true;
+      });
+      setGroupVisibility(defaults);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      const merged: Record<string, boolean> = {};
+
+      groups.forEach((g) => {
+        merged[g.id] = parsed[g.id] ?? true;
+      });
+
+      setGroupVisibility(merged);
+    } catch {
+      const defaults: Record<string, boolean> = {};
+      groups.forEach((g) => {
+        defaults[g.id] = true;
+      });
+      setGroupVisibility(defaults);
+    }
+  }, [groups, settingsUserKey]);
+
+  useEffect(() => {
+    if (!groups.length) return;
+    const storageKey = `week-group-visibility:${settingsUserKey}`;
+    localStorage.setItem(storageKey, JSON.stringify(groupVisibility));
+  }, [groupVisibility, groups, settingsUserKey]);
+
   /* ================= MENU CLOSE ================= */
 
   useEffect(() => {
     function handleClick() {
       setOpenMenuTourId(null);
+      setShowGroupSettings(false);
     }
 
-    if (openMenuTourId) {
+    if (openMenuTourId || showGroupSettings) {
       window.addEventListener("click", handleClick);
     }
 
     return () => {
       window.removeEventListener("click", handleClick);
     };
-  }, [openMenuTourId]);
+  }, [openMenuTourId, showGroupSettings]);
 
   /* ================= REALTIME ================= */
 
@@ -441,11 +517,21 @@ export default function WeekDetail() {
 
   /* ================= DERIVED ================= */
 
-  const visibleColumns = useMemo(() => columns.filter((c) => c.is_visible), [columns]);
+  const visibleGroups = useMemo(() => {
+    return groups.filter((g) => groupVisibility[g.id] !== false);
+  }, [groups, groupVisibility]);
+
+  const visibleGroupIds = useMemo(() => {
+    return new Set(visibleGroups.map((g) => g.id));
+  }, [visibleGroups]);
+
+  const visibleColumns = useMemo(() => {
+    return columns.filter((c) => c.is_visible && c.column_group_id && visibleGroupIds.has(c.column_group_id));
+  }, [columns, visibleGroupIds]);
 
   const columnsByGroup = useMemo(() => {
     const map: Record<string, TourColumn[]> = {};
-    groups.forEach((g) => {
+    visibleGroups.forEach((g) => {
       map[g.id] = [];
     });
 
@@ -455,7 +541,7 @@ export default function WeekDetail() {
     });
 
     return map;
-  }, [groups, visibleColumns]);
+  }, [visibleGroups, visibleColumns]);
 
   const orderedDayIds = useMemo(() => days.map((d) => d.id), [days]);
 
@@ -659,6 +745,31 @@ export default function WeekDetail() {
 
   function clearSelection() {
     setSelectedRows([]);
+  }
+
+  /* ================= GROUP SETTINGS ================= */
+
+  function toggleGroupVisibility(groupId: string) {
+    setGroupVisibility((prev) => ({
+      ...prev,
+      [groupId]: prev[groupId] === false,
+    }));
+  }
+
+  function showAllGroups() {
+    const next: Record<string, boolean> = {};
+    groups.forEach((g) => {
+      next[g.id] = true;
+    });
+    setGroupVisibility(next);
+  }
+
+  function hideAllGroups() {
+    const next: Record<string, boolean> = {};
+    groups.forEach((g) => {
+      next[g.id] = false;
+    });
+    setGroupVisibility(next);
   }
 
   /* ================= BULK EDIT ================= */
@@ -1055,6 +1166,46 @@ export default function WeekDetail() {
               <div className="selection-badge">{selectedRows.length} markiert</div>
             )}
 
+            <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
+              <button
+                className="btn-secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowGroupSettings((prev) => !prev);
+                }}
+              >
+                Gruppen
+              </button>
+
+              {showGroupSettings && (
+                <div className="tour-menu tour-menu-down group-settings-menu">
+                  <div className="group-settings-header">Gruppen anzeigen</div>
+
+                  <div className="group-settings-actions">
+                    <button className="tour-menu-item" onClick={showAllGroups}>
+                      Alle anzeigen
+                    </button>
+                    <button className="tour-menu-item" onClick={hideAllGroups}>
+                      Alle ausblenden
+                    </button>
+                  </div>
+
+                  <div className="group-settings-list">
+                    {groups.map((group) => (
+                      <label key={group.id} className="group-settings-item">
+                        <input
+                          type="checkbox"
+                          checked={groupVisibility[group.id] !== false}
+                          onChange={() => toggleGroupVisibility(group.id)}
+                        />
+                        <span>{group.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               className="btn-secondary"
               onClick={() => setExpandAllDays((prev) => !prev)}
@@ -1172,7 +1323,7 @@ export default function WeekDetail() {
                           <th rowSpan={2} className="sticky-col-2 action-col">⇅</th>
                           <th rowSpan={2} className="sticky-col-3 menu-col">⋯</th>
 
-                          {groups.map((group) => {
+                          {visibleGroups.map((group) => {
                             const groupColumns = columnsByGroup[group.id] ?? [];
                             if (!groupColumns.length) return null;
 
@@ -1236,6 +1387,20 @@ export default function WeekDetail() {
                                     className="icon-btn"
                                     onClick={(e) => {
                                       e.stopPropagation();
+
+                                      const button = e.currentTarget as HTMLButtonElement;
+                                      const rect = button.getBoundingClientRect();
+
+                                      const estimatedMenuHeight = 124;
+                                      const spaceBelow = window.innerHeight - rect.bottom;
+                                      const direction: MenuDirection =
+                                        spaceBelow < estimatedMenuHeight ? "up" : "down";
+
+                                      setMenuDirectionByTour((prev) => ({
+                                        ...prev,
+                                        [tour.id]: direction,
+                                      }));
+
                                       setOpenMenuTourId(menuOpen ? null : tour.id);
                                     }}
                                     title="Tour Aktionen"
@@ -1244,7 +1409,13 @@ export default function WeekDetail() {
                                   </button>
 
                                   {menuOpen && (
-                                    <div className="tour-menu">
+                                    <div
+                                      className={`tour-menu ${
+                                        menuDirectionByTour[tour.id] === "up"
+                                          ? "tour-menu-up"
+                                          : "tour-menu-down"
+                                      }`}
+                                    >
                                       <button
                                         className="tour-menu-item"
                                         onClick={() => toggleCancelled(tour)}
