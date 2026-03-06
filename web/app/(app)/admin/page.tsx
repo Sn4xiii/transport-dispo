@@ -7,374 +7,336 @@ import "./admin.css";
 /* ================= TYPES ================= */
 
 type Role = {
-id: string
-name: string
+  id: string
+  name: string
 }
 
 type Profile = {
-id: string
-email: string | null
-name: string | null
-company: string | null
-phone: string | null
-role_id: string | null
-roles?: Role
+  id: string
+  email: string | null
+  name: string | null
+  company: string | null
+  phone: string | null
+  role_id: string | null
+  roles?: Role
 }
 
 type Permission = {
-id: string
-key: string
-label: string | null
-description: string | null
+  id: string
+  key: string
+  label: string | null
 }
 
 type RolePermission = {
-role_id: string
-permission_id: string
-permissions: Permission
+  role_id: string
+  permission_id: string
+  permissions: Permission
 }
 
 type ColumnGroup = {
-id: string
-name: string
-position: number
-is_visible: boolean
+  id: string
+  name: string
+  position: number
+  is_visible: boolean
 }
 
 type TourColumn = {
-id: string
-label: string
-column_group_id: string
-position: number
-is_visible: boolean
-}
-
-type Activity = {
-id:number
-text:string
-date:string
+  id: string
+  label: string
+  column_group_id: string
+  position: number
+  is_visible: boolean
 }
 
 /* ================= PAGE ================= */
 
 export default function AdminPage(){
 
-const [tab,setTab] =
-useState<"dashboard"|"users"|"roles"|"permissions"|"columns">("dashboard")
+  const [tab,setTab] =
+    useState<"users"|"roles"|"permissions"|"columns">("users")
 
-const [users,setUsers] = useState<Profile[]>([])
-const [roles,setRoles] = useState<Role[]>([])
-const [permissions,setPermissions] = useState<Permission[]>([])
-const [rolePermissions,setRolePermissions] = useState<RolePermission[]>([])
-const [columnGroups,setColumnGroups] = useState<ColumnGroup[]>([])
-const [columns,setColumns] = useState<TourColumn[]>([])
+  const [users,setUsers] = useState<Profile[]>([])
+  const [roles,setRoles] = useState<Role[]>([])
+  const [permissions,setPermissions] = useState<Permission[]>([])
+  const [rolePermissions,setRolePermissions] =
+    useState<RolePermission[]>([])
 
-const [activities,setActivities] = useState<Activity[]>([])
+  const [columnGroups,setColumnGroups] = useState<ColumnGroup[]>([])
+  const [columns,setColumns] = useState<TourColumn[]>([])
 
-const [search,setSearch] = useState("")
-const [loading,setLoading] = useState(true)
+  const [search,setSearch] = useState("")
+  const [loading,setLoading] = useState(true)
 
-const [newEmail,setNewEmail] = useState("")
-const [newRole,setNewRole] = useState("")
-const [newGroup,setNewGroup] = useState("")
-const [newColumn,setNewColumn] = useState("")
-const [selectedGroup,setSelectedGroup] = useState("")
+  const [newEmail,setNewEmail] = useState("")
+  const [newRole,setNewRole] = useState("")
+  const [newGroup,setNewGroup] = useState("")
+  const [newColumn,setNewColumn] = useState("")
+  const [selectedGroup,setSelectedGroup] = useState("")
 
 /* ================= LOAD ================= */
 
 async function load(){
 
-setLoading(true)
+  setLoading(true)
 
-const { data:usersData } =
-await supabase
-.from("profiles")
-.select(`*, roles(id,name)`)
-.order("created_at",{ascending:false})
+  const { data:usersData } =
+    await supabase
+      .from("profiles")
+      .select(`
+        *,
+        roles (
+          id,
+          name
+        )
+      `)
+      .order("created_at",{ascending:false})
 
-if(usersData) setUsers(usersData)
+  console.log("USERS:",usersData)
 
-const { data:rolesData } =
-await supabase.from("roles").select("*")
+  if(usersData) setUsers(usersData)
 
-if(rolesData) setRoles(rolesData)
+  const { data:rolesData,error:rolesError } =
+    await supabase.from("roles").select("*")
 
-const { data:permissionsData } =
-await supabase.from("permissions").select("*")
+  console.log("ROLES:",rolesData,rolesError)
 
-if(permissionsData) setPermissions(permissionsData)
+  if(rolesData) setRoles(rolesData)
 
-const { data:rpData } =
-await supabase
-.from("role_permissions")
-.select(`role_id, permission_id, permissions (*)`)
+  const { data:permissionsData,error:permError } =
+    await supabase.from("permissions").select("*")
 
-if(rpData) setRolePermissions(rpData)
+  console.log("PERMISSIONS:",permissionsData,permError)
 
-const { data:groupsData } =
-await supabase
-.from("column_groups")
-.select("*")
-.order("position")
+  if(permissionsData) setPermissions(permissionsData)
 
-if(groupsData) setColumnGroups(groupsData)
+  const { data:rpData } =
+    await supabase
+      .from("role_permissions")
+      .select(`
+        role_id,
+        permission_id,
+        permissions (*)
+      `)
 
-const { data:columnsData } =
-await supabase
-.from("tour_columns")
-.select("*")
-.order("position")
+  console.log("ROLE PERMISSIONS:",rpData)
 
-if(columnsData) setColumns(columnsData)
+  if(rpData) setRolePermissions(rpData)
 
-setLoading(false)
+  const { data:groupsData,error:groupsError } =
+    await supabase
+      .from("column_groups")
+      .select("*")
+      .order("position")
+
+  console.log("COLUMN GROUPS:",groupsData,groupsError)
+
+  if(groupsData) setColumnGroups(groupsData)
+
+  const { data:columnsData,error:columnsError } =
+    await supabase
+      .from("tour_columns")
+      .select("*")
+      .order("position")
+
+  console.log("COLUMNS:",columnsData,columnsError)
+
+  if(columnsData) setColumns(columnsData)
+
+  setLoading(false)
 }
 
 useEffect(()=>{
-load()
+  load()
 },[])
-
-/* ================= ACTIVITY LOG ================= */
-
-function addActivity(text:string){
-
-setActivities(prev=>[
-{
-id:Date.now(),
-text,
-date:new Date().toLocaleString()
-},
-...prev
-])
-
-}
 
 /* ================= USER SEARCH ================= */
 
 const filteredUsers = useMemo(()=>{
 
-const q = search.toLowerCase()
+  const q = search.toLowerCase()
 
-return users.filter(u =>
-(u.email || "").toLowerCase().includes(q) ||
-(u.name || "").toLowerCase().includes(q)
-)
+  return users.filter(u =>
+    (u.email || "").toLowerCase().includes(q) ||
+    (u.name || "").toLowerCase().includes(q)
+  )
 
 },[users,search])
 
 /* ================= USER UPDATE ================= */
 
 async function updateUser(
-id:string,
-field:"name"|"company"|"phone"|"role_id",
-value:string
+  id:string,
+  field:"name"|"company"|"phone"|"role_id",
+  value:string
 ){
 
-await supabase
-.from("profiles")
-.update({ [field]:value })
-.eq("id",id)
+  await supabase
+    .from("profiles")
+    .update({ [field]:value })
+    .eq("id",id)
 
-setUsers(prev =>
-prev.map(u =>
-u.id === id ? { ...u,[field]:value } : u
-)
-)
-
-addActivity("User updated")
-
+  setUsers(prev =>
+    prev.map(u =>
+      u.id === id ? { ...u,[field]:value } : u
+    )
+  )
 }
 
 /* ================= USER DELETE ================= */
 
 async function deleteUser(id:string){
 
-if(!confirm("User löschen?")) return
+  if(!confirm("User löschen?")) return
 
-await supabase
-.from("profiles")
-.delete()
-.eq("id",id)
+  await supabase
+    .from("profiles")
+    .delete()
+    .eq("id",id)
 
-setUsers(prev =>
-prev.filter(u=>u.id !== id)
-)
-
-addActivity("User deleted")
-
+  setUsers(prev =>
+    prev.filter(u=>u.id !== id)
+  )
 }
 
 /* ================= CREATE USER ================= */
 
 async function createUser(){
 
-if(!newEmail) return
+  if(!newEmail) return
 
-const res = await fetch("/backend/create-user",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({ email:newEmail })
-})
+  const res = await fetch("/backend/create-user",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({ email:newEmail })
+  })
 
-const data = await res.json()
+  const data = await res.json()
 
-if(!res.ok){
-alert(data.error)
-return
+  console.log("CREATE USER:",data)
+
+  if(!res.ok){
+    alert(data.error)
+    return
+  }
+
+  setNewEmail("")
+  await load()
 }
 
-setNewEmail("")
-addActivity("User created")
-
-await load()
-}
-
-/* ================= ROLES ================= */
+/* ================= ROLE MANAGEMENT ================= */
 
 async function createRole(){
 
-if(!newRole) return
+  if(!newRole) return
 
-const { data } =
-await supabase
-.from("roles")
-.insert({ name:newRole })
-.select()
-.single()
+  const { data } =
+    await supabase
+      .from("roles")
+      .insert({ name:newRole })
+      .select()
+      .single()
 
-if(data){
-setRoles(prev=>[...prev,data])
-setNewRole("")
-addActivity("Role created")
-}
-
+  if(data){
+    setRoles(prev=>[...prev,data])
+    setNewRole("")
+  }
 }
 
 async function deleteRole(id:string){
 
-if(!confirm("Role löschen?")) return
+  if(!confirm("Role löschen?")) return
 
-await supabase
-.from("roles")
-.delete()
-.eq("id",id)
+  await supabase
+    .from("roles")
+    .delete()
+    .eq("id",id)
 
-setRoles(prev =>
-prev.filter(r=>r.id !== id)
-)
-
-addActivity("Role deleted")
-
+  setRoles(prev=>prev.filter(r=>r.id!==id))
 }
 
 /* ================= PERMISSIONS ================= */
 
 function hasPermission(roleId:string,permissionId:string){
 
-return rolePermissions.some(
-rp =>
-rp.role_id === roleId &&
-rp.permission_id === permissionId
-)
-
+  return rolePermissions.some(
+    rp =>
+      rp.role_id === roleId &&
+      rp.permission_id === permissionId
+  )
 }
 
 async function togglePermission(roleId:string,permission:Permission){
 
-const exists = rolePermissions.find(
-rp =>
-rp.role_id === roleId &&
-rp.permission_id === permission.id
-)
+  const exists = rolePermissions.find(
+    rp =>
+      rp.role_id === roleId &&
+      rp.permission_id === permission.id
+  )
 
-if(exists){
+  if(exists){
 
-```
-await supabase
-  .from("role_permissions")
-  .delete()
-  .eq("role_id",roleId)
-  .eq("permission_id",permission.id)
-```
+    await supabase
+      .from("role_permissions")
+      .delete()
+      .eq("role_id",roleId)
+      .eq("permission_id",permission.id)
 
-}else{
+  }else{
 
-```
-await supabase
-  .from("role_permissions")
-  .insert({
-    role_id:roleId,
-    permission_id:permission.id
-  })
-```
+    await supabase
+      .from("role_permissions")
+      .insert({
+        role_id:roleId,
+        permission_id:permission.id
+      })
 
+  }
+
+  await load()
 }
 
-addActivity("Permission updated")
-
-await load()
-
-}
-
-/* ================= COLUMNS ================= */
+/* ================= COLUMN MANAGEMENT ================= */
 
 async function createGroup(){
 
-if(!newGroup) return
+  if(!newGroup) return
 
-await supabase
-.from("column_groups")
-.insert({
-name:newGroup,
-position:columnGroups.length + 1,
-is_visible:true
-})
+  await supabase
+    .from("column_groups")
+    .insert({
+      name:newGroup,
+      position:columnGroups.length + 1,
+      is_visible:true
+    })
 
-setNewGroup("")
-addActivity("Column group created")
-
-await load()
-
+  setNewGroup("")
+  await load()
 }
 
 async function createColumn(){
 
-if(!newColumn || !selectedGroup) return
+  if(!newColumn || !selectedGroup) return
 
-await supabase
-.from("tour_columns")
-.insert({
-label:newColumn,
-column_group_id:selectedGroup,
-position:columns.length + 1,
-is_visible:true
-})
+  await supabase
+    .from("tour_columns")
+    .insert({
+      label:newColumn,
+      column_group_id:selectedGroup,
+      position:columns.length + 1,
+      is_visible:true
+    })
 
-setNewColumn("")
-addActivity("Column created")
-
-await load()
-
+  setNewColumn("")
+  await load()
 }
 
-/* ================= DASHBOARD STATS ================= */
-
-const stats = [
-{ label:"Users", value:users.length },
-{ label:"Roles", value:roles.length },
-{ label:"Permissions", value:permissions.length },
-{ label:"Columns", value:columns.length }
-]
-
-/* ================= LOADING ================= */
+/* ================= RENDER ================= */
 
 if(loading){
-return <div className="admin-container">Loading...</div>
+  return <div className="admin-container">Loading...</div>
 }
-
-/* ================= UI ================= */
 
 return(
 
@@ -384,7 +346,6 @@ return(
 
 <div className="admin-tabs">
 
-<button onClick={()=>setTab("dashboard")}>Dashboard</button>
 <button onClick={()=>setTab("users")}>Users</button>
 <button onClick={()=>setTab("roles")}>Roles</button>
 <button onClick={()=>setTab("permissions")}>Permissions</button>
@@ -392,71 +353,14 @@ return(
 
 </div>
 
-{/* DASHBOARD */}
-
-{tab==="dashboard" && (
-
-<div>
-
-<div className="admin-stats">
-
-{stats.map(stat=>(
-
-<div key={stat.label} className="admin-stat-card">
-
-<h3>{stat.value}</h3>
-
-<p>{stat.label}</p>
-
-</div>
-
-))}
-
-</div>
-
-<div className="admin-card">
-
-<h2>Activity Log</h2>
-
-{activities.length === 0 && (
-
-<div className="admin-empty">
-No activity yet
-</div>
-)}
-
-<ul className="admin-activity">
-
-{activities.map(a=>(
-
-<li key={a.id}>
-
-<span>{a.text}</span>
-
-<small>{a.date}</small>
-
-</li>
-
-))}
-
-</ul>
-
-</div>
-
-</div>
-
-)}
-
 {/* USERS */}
 
 {tab==="users" && (
 
-<div className="admin-card">
-
-<div className="admin-toolbar">
+<div>
 
 <input
-placeholder="Search..."
+placeholder="Search"
 value={search}
 onChange={e=>setSearch(e.target.value)}
 />
@@ -467,16 +371,13 @@ value={newEmail}
 onChange={e=>setNewEmail(e.target.value)}
 />
 
-<button className="btn-primary" onClick={createUser}>
+<button onClick={createUser}>
 Create User
 </button>
 
-</div>
-
-<table className="admin-table">
+<table>
 
 <thead>
-
 <tr>
 <th>Email</th>
 <th>Name</th>
@@ -485,12 +386,11 @@ Create User
 <th>Role</th>
 <th></th>
 </tr>
-
 </thead>
 
 <tbody>
 
-{filteredUsers.map(user=>(
+{filteredUsers?.map(user=>(
 
 <tr key={user.id}>
 
@@ -498,7 +398,6 @@ Create User
 
 <td>
 <input
-className="admin-input"
 value={user.name || ""}
 onChange={e =>
 updateUser(user.id,"name",e.target.value)
@@ -508,7 +407,6 @@ updateUser(user.id,"name",e.target.value)
 
 <td>
 <input
-className="admin-input"
 value={user.company || ""}
 onChange={e =>
 updateUser(user.id,"company",e.target.value)
@@ -518,7 +416,6 @@ updateUser(user.id,"company",e.target.value)
 
 <td>
 <input
-className="admin-input"
 value={user.phone || ""}
 onChange={e =>
 updateUser(user.id,"phone",e.target.value)
@@ -533,15 +430,12 @@ value={user.role_id || ""}
 onChange={e =>
 updateUser(user.id,"role_id",e.target.value)
 }
-
 >
 
-{roles.map(r=>(
-
+{roles?.map(r=>(
 <option key={r.id} value={r.id}>
 {r.name}
 </option>
-
 ))}
 
 </select>
@@ -549,15 +443,9 @@ updateUser(user.id,"role_id",e.target.value)
 </td>
 
 <td>
-
-<button
-className="btn-danger"
-onClick={()=>deleteUser(user.id)}
-
->
-
-Delete </button>
-
+<button onClick={()=>deleteUser(user.id)}>
+Delete
+</button>
 </td>
 
 </tr>
@@ -576,9 +464,7 @@ Delete </button>
 
 {tab==="roles" && (
 
-<div className="admin-card">
-
-<div className="admin-toolbar">
+<div>
 
 <input
 placeholder="New Role"
@@ -586,31 +472,21 @@ value={newRole}
 onChange={e=>setNewRole(e.target.value)}
 />
 
-<button
-className="btn-primary"
-onClick={createRole}
+<button onClick={createRole}>
+Create Role
+</button>
 
->
+<ul>
 
-Create Role </button>
-
-</div>
-
-<ul className="admin-roles">
-
-{roles.map(role=>(
+{roles?.map(role=>(
 
 <li key={role.id}>
 
-<span>{role.name}</span>
+{role.name}
 
-<button
-className="btn-danger"
-onClick={()=>deleteRole(role.id)}
-
->
-
-Delete </button>
+<button onClick={()=>deleteRole(role.id)}>
+Delete
+</button>
 
 </li>
 
@@ -626,53 +502,29 @@ Delete </button>
 
 {tab==="permissions" && (
 
-<div className="admin-card">
+<div>
 
-{roles.map(role=>(
+{roles?.map(role=>(
 
-<div key={role.id} className="permission-role">
+<div key={role.id}>
 
 <h3>{role.name}</h3>
 
-<div className="permission-grid">
-
-{permissions.map(permission=>(
+{permissions?.map(permission=>(
 
 <label key={permission.id}>
 
 <input
 type="checkbox"
-checked={
-hasPermission(
-role.id,
-permission.id
-)
-}
-onChange={()=>
-togglePermission(role.id,permission)
-}
+checked={hasPermission(role.id,permission.id)}
+onChange={()=>togglePermission(role.id,permission)}
 />
 
-<div className="permission-text">
-
-<div className="permission-label">
 {permission.label || permission.key}
-</div>
-
-{permission.description && (
-
-<div className="permission-desc">
-{permission.description}
-</div>
-)}
-
-</div>
 
 </label>
 
 ))}
-
-</div>
 
 </div>
 
@@ -686,11 +538,9 @@ togglePermission(role.id,permission)
 
 {tab==="columns" && (
 
-<div className="admin-card">
+<div>
 
 <h2>Column Groups</h2>
-
-<div className="admin-toolbar">
 
 <input
 placeholder="New Group"
@@ -698,26 +548,20 @@ value={newGroup}
 onChange={e=>setNewGroup(e.target.value)}
 />
 
-<button
-className="btn-primary"
-onClick={createGroup}
+<button onClick={createGroup}>
+Create Group
+</button>
 
->
+{columnGroups?.map(group=>(
 
-Create Group </button>
-
-</div>
-
-{columnGroups.map(group=>(
-
-<div key={group.id} className="admin-column-group">
+<div key={group.id}>
 
 <h3>{group.name}</h3>
 
 <ul>
 
 {columns
-.filter(c=>c.column_group_id===group.id)
+?.filter(c=>c.column_group_id===group.id)
 .map(col=>(
 
 <li key={col.id}>
@@ -734,10 +578,8 @@ Create Group </button>
 
 <h2>Create Column</h2>
 
-<div className="admin-toolbar">
-
 <input
-placeholder="Column Label"
+placeholder="Column Name"
 value={newColumn}
 onChange={e=>setNewColumn(e.target.value)}
 />
@@ -745,32 +587,21 @@ onChange={e=>setNewColumn(e.target.value)}
 <select
 value={selectedGroup}
 onChange={e=>setSelectedGroup(e.target.value)}
-
 >
 
-<option value="">
-Select Group
-</option>
+<option value="">Select Group</option>
 
-{columnGroups.map(g=>(
-
+{columnGroups?.map(g=>(
 <option key={g.id} value={g.id}>
 {g.name}
 </option>
-
 ))}
 
 </select>
 
-<button
-className="btn-primary"
-onClick={createColumn}
-
->
-
-Create Column </button>
-
-</div>
+<button onClick={createColumn}>
+Create Column
+</button>
 
 </div>
 
@@ -779,5 +610,4 @@ Create Column </button>
 </div>
 
 )
-
 }
