@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase-browser";
 import "./profile.css";
 
 type Profile = {
@@ -16,6 +17,8 @@ type Notice = {
 } | null;
 
 export default function ProfilePage() {
+  const router = useRouter();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,9 +31,11 @@ export default function ProfilePage() {
   const initials = useMemo(() => {
     const source = name.trim() || email.trim() || "U";
     const parts = source.split(" ").filter(Boolean);
+
     if (parts.length === 1) {
       return parts[0].slice(0, 2).toUpperCase();
     }
+
     return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
   }, [name, email]);
 
@@ -40,27 +45,30 @@ export default function ProfilePage() {
   }, [profile, name, company]);
 
   useEffect(() => {
+    let active = true;
+
     async function loadProfile() {
       setLoading(true);
       setNotice(null);
 
       try {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-        if (userError) {
-          throw userError;
+        if (sessionError) {
+          throw sessionError;
         }
 
-        const user = userData.user;
-
-        if (!user) {
-          setNotice({
-            type: "error",
-            message: "Kein Benutzer gefunden. Bitte erneut einloggen.",
-          });
-          setLoading(false);
+        if (!session?.user) {
+          router.replace("/login");
           return;
         }
+
+        const user = session.user;
+
+        if (!active) return;
 
         setEmail(user.email ?? "");
 
@@ -75,6 +83,8 @@ export default function ProfilePage() {
         }
 
         if (data) {
+          if (!active) return;
+
           setProfile(data);
           setName(data.name ?? "");
           setCompany(data.company ?? "");
@@ -95,26 +105,48 @@ export default function ProfilePage() {
             throw createError;
           }
 
+          if (!active) return;
+
           setProfile(fallbackProfile);
           setName(fallbackProfile.name ?? "");
           setCompany(fallbackProfile.company ?? "");
         }
       } catch (error: any) {
         console.error("Profile load error:", error);
+
+        const message = String(error?.message ?? "");
+
+        if (
+          message.toLowerCase().includes("auth session missing") ||
+          error?.name === "AuthSessionMissingError"
+        ) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!active) return;
+
         setNotice({
           type: "error",
           message: error?.message ?? "Profil konnte nicht geladen werden.",
         });
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
     loadProfile();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   function resetForm() {
     if (!profile) return;
+
     setName(profile.name ?? "");
     setCompany(profile.company ?? "");
     setNotice({
@@ -164,7 +196,7 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      window.location.href = "/login";
+      router.replace("/login");
     }
   }
 
