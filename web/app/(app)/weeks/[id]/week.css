@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .week-subtitle {
@@ -34,13 +34,54 @@
   font-weight: 600;
 }
 
+.bulk-panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.bulk-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #111827;
+}
+
+.bulk-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bulk-select,
+.bulk-input {
+  height: 40px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: white;
+}
+
+.bulk-input {
+  min-width: 260px;
+}
+
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.icon-btn {
   border: 0;
   border-radius: 10px;
-  padding: 10px 14px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 14px;
 }
 
 .btn-primary {
@@ -51,6 +92,13 @@
 .btn-secondary {
   background: white;
   color: #111827;
+  border: 1px solid #d0d5dd;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  background: #f8fafc;
   border: 1px solid #d0d5dd;
 }
 
@@ -97,7 +145,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1200px;
+  min-width: 1400px;
 }
 
 .dispo-table thead th {
@@ -185,6 +233,18 @@
   width: 44px;
   min-width: 44px;
   text-align: center;
+}
+
+.action-col {
+  width: 64px;
+  min-width: 64px;
+  text-align: center;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .sticky-col {
