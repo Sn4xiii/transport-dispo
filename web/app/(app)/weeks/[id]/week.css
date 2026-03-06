@@ -263,3 +263,48 @@
   color: #667085;
   padding: 20px !important;
 }
+.menu-col {
+  width: 64px;
+  min-width: 64px;
+  text-align: center;
+}
+
+.tour-menu-wrap {
+  position: relative;
+}
+
+.tour-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  min-width: 170px;
+  background: white;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.16);
+  padding: 6px;
+  z-index: 30;
+}
+
+.tour-menu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tour-menu-item:hover {
+  background: #f8fafc;
+}
+
+.tour-menu-item-danger {
+  color: #b42318;
+}
+
+.tour-menu-item-danger:hover {
+  background: #fff1f2;
+}

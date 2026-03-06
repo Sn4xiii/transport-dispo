@@ -179,10 +179,11 @@ export default function WeekDetail() {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [copiedCellValue, setCopiedCellValue] = useState<string>("");
+  const [copiedCellValue, setCopiedCellValue] = useState("");
   const [bulkMode, setBulkMode] = useState<BulkMode>("truck_number");
   const [bulkValue, setBulkValue] = useState("");
   const [bulkColumnId, setBulkColumnId] = useState("");
+  const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
 
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -277,10 +278,14 @@ export default function WeekDetail() {
         setSelectedDayId(todayDay?.id ?? dayData?.[0]?.id ?? null);
       }
 
-      if ((columnData ?? []).length > 0) {
-        setBulkColumnId(columnData?.[0]?.id ?? "");
-      }
+      const customColumns = (columnData ?? []).filter(
+        (col) =>
+          col.key !== "truck_number" &&
+          col.key !== "truck_type_id" &&
+          col.key !== "planned_arrival_werk1"
+      );
 
+      setBulkColumnId(customColumns[0]?.id ?? "");
       setLoading(false);
     }
 
@@ -290,6 +295,22 @@ export default function WeekDetail() {
       isMounted = false;
     };
   }, [weekId]);
+
+  /* ================= CLICK OUTSIDE MENU ================= */
+
+  useEffect(() => {
+    function handleClick() {
+      setOpenMenuTourId(null);
+    }
+
+    if (openMenuTourId) {
+      window.addEventListener("click", handleClick);
+    }
+
+    return () => {
+      window.removeEventListener("click", handleClick);
+    };
+  }, [openMenuTourId]);
 
   /* ================= REALTIME ================= */
 
@@ -448,9 +469,7 @@ export default function WeekDetail() {
 
     const results = await Promise.all(updates);
     results.forEach((result) => {
-      if (result.error) {
-        console.error("position update error", result.error);
-      }
+      if (result.error) console.error("position update error", result.error);
     });
   }
 
@@ -478,11 +497,14 @@ export default function WeekDetail() {
         return [...rest, ...updatedDayTours];
       });
 
-      await persistDayPositions(dayId, reordered.map((tour, index) => ({
-        ...tour,
-        position: index + 1,
-        planning_day_id: dayId,
-      })));
+      await persistDayPositions(
+        dayId,
+        reordered.map((tour, index) => ({
+          ...tour,
+          position: index + 1,
+          planning_day_id: dayId,
+        }))
+      );
     },
     [toursByDay]
   );
@@ -698,6 +720,107 @@ export default function WeekDetail() {
     }
 
     setBulkValue("");
+  }
+
+  /* ================= TOUR ACTIONS ================= */
+
+  async function toggleCancelled(tour: TourWithRelations) {
+    const nextValue = !tour.cancelled;
+
+    setTours((prev) =>
+      prev.map((t) =>
+        t.id === tour.id
+          ? {
+              ...t,
+              cancelled: nextValue,
+            }
+          : t
+      )
+    );
+
+    const { error } = await supabase
+      .from("tours")
+      .update({ cancelled: nextValue })
+      .eq("id", tour.id);
+
+    if (error) {
+      console.error("toggle cancelled error", error);
+    }
+
+    setOpenMenuTourId(null);
+  }
+
+  async function deleteTour(tour: TourWithRelations) {
+    const ok = window.confirm("Tour wirklich löschen?");
+    if (!ok) return;
+
+    setTours((prev) => prev.filter((t) => t.id !== tour.id));
+    setSelectedRows((prev) => prev.filter((id) => id !== tour.id));
+
+    const { error: deleteValuesError } = await supabase
+      .from("tour_column_values")
+      .delete()
+      .eq("tour_id", tour.id);
+
+    if (deleteValuesError) {
+      console.error("delete tour values error", deleteValuesError);
+    }
+
+    const { error } = await supabase.from("tours").delete().eq("id", tour.id);
+
+    if (error) {
+      console.error("delete tour error", error);
+    }
+
+    setOpenMenuTourId(null);
+  }
+
+  async function duplicateTour(tour: TourWithRelations) {
+    const targetDayId = tour.planning_day_id ?? selectedDayId;
+    if (!targetDayId) return;
+
+    const nextPosition = ((toursByDay[targetDayId] ?? []).length || 0) + 1;
+
+    const insertPayload: Partial<TourWithRelations> = {
+      planning_day_id: targetDayId,
+      position: nextPosition,
+      truck_number: tour.truck_number ?? null,
+      planned_arrival_werk1: tour.planned_arrival_werk1 ?? null,
+      truck_type_id: tour.truck_type_id ?? null,
+      cancelled: false,
+    };
+
+    const { data: insertedTour, error } = await supabase
+      .from("tours")
+      .insert(insertPayload)
+      .select("*")
+      .single();
+
+    if (error || !insertedTour) {
+      console.error("duplicate tour insert error", error);
+      return;
+    }
+
+    const sourceValues = values[tour.id] ?? {};
+    const valueEntries = Object.entries(sourceValues);
+
+    if (valueEntries.length > 0) {
+      const inserts = valueEntries.map(([columnId, value]) => ({
+        tour_id: insertedTour.id,
+        column_id: columnId,
+        value,
+      }));
+
+      const { error: valuesError } = await supabase
+        .from("tour_column_values")
+        .insert(inserts);
+
+      if (valuesError) {
+        console.error("duplicate values error", valuesError);
+      }
+    }
+
+    setOpenMenuTourId(null);
   }
 
   /* ================= CELL RENDER ================= */
@@ -956,6 +1079,9 @@ export default function WeekDetail() {
                         <th rowSpan={2} className="action-col">
                           ⇅
                         </th>
+                        <th rowSpan={2} className="menu-col">
+                          ⋯
+                        </th>
 
                         {groups.map((group) => {
                           const groupColumns = columnsByGroup[group.id] ?? [];
@@ -980,6 +1106,7 @@ export default function WeekDetail() {
                       {dayTours.map((tour, rowIndex) => {
                         const rowClass = getRowClass(tour);
                         const isSelected = selectedRows.includes(tour.id);
+                        const menuOpen = openMenuTourId === tour.id;
 
                         return (
                           <DraggableRow
@@ -1014,6 +1141,46 @@ export default function WeekDetail() {
                               </div>
                             </td>
 
+                            <td className="menu-col">
+                              <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  className="icon-btn"
+                                  title="Tour Aktionen"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTourId(menuOpen ? null : tour.id);
+                                  }}
+                                >
+                                  ⋯
+                                </button>
+
+                                {menuOpen && (
+                                  <div className="tour-menu">
+                                    <button
+                                      className="tour-menu-item"
+                                      onClick={() => toggleCancelled(tour)}
+                                    >
+                                      {tour.cancelled ? "Reaktivieren" : "Stornieren"}
+                                    </button>
+
+                                    <button
+                                      className="tour-menu-item"
+                                      onClick={() => duplicateTour(tour)}
+                                    >
+                                      Duplizieren
+                                    </button>
+
+                                    <button
+                                      className="tour-menu-item tour-menu-item-danger"
+                                      onClick={() => deleteTour(tour)}
+                                    >
+                                      Löschen
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+
                             {visibleColumns.map((col, colIndex) => (
                               <td key={col.id}>{renderCell(tour, col, rowIndex, colIndex)}</td>
                             ))}
@@ -1023,7 +1190,7 @@ export default function WeekDetail() {
 
                       {dayTours.length === 0 && (
                         <tr>
-                          <td colSpan={visibleColumns.length + 2} className="empty-day-cell">
+                          <td colSpan={visibleColumns.length + 3} className="empty-day-cell">
                             Keine Touren. Zieh eine Tour hierher oder lege eine neue an.
                           </td>
                         </tr>
