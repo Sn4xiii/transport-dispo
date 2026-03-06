@@ -354,3 +354,12 @@
   z-index: 6;
   background: inherit;
 }
+.day-section-header-clickable {
+  cursor: pointer;
+}
+
+.day-open-indicator {
+  font-size: 16px;
+  font-weight: 700;
+  color: #344054;
+}

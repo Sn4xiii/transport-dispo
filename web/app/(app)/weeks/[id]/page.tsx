@@ -249,6 +249,9 @@ export default function WeekDetail() {
   const [bulkValue, setBulkValue] = useState("");
   const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
 
+  const [openDayId, setOpenDayId] = useState<string | null>(null);
+  const [expandAllDays, setExpandAllDays] = useState(false);
+
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   /* ================= LOAD ================= */
@@ -327,7 +330,10 @@ export default function WeekDetail() {
       if ((dayData ?? []).length > 0) {
         const today = new Date().toISOString().slice(0, 10);
         const todayDay = dayData?.find((d) => d.date === today);
-        setSelectedDayId(todayDay?.id ?? dayData?.[0]?.id ?? null);
+        const initialDayId = todayDay?.id ?? dayData?.[0]?.id ?? null;
+
+        setSelectedDayId(initialDayId);
+        setOpenDayId(initialDayId);
       }
 
       const firstSystemColumn = (columnData ?? []).find((c) => (c as any).is_system);
@@ -1049,6 +1055,13 @@ export default function WeekDetail() {
               <div className="selection-badge">{selectedRows.length} markiert</div>
             )}
 
+            <button
+              className="btn-secondary"
+              onClick={() => setExpandAllDays((prev) => !prev)}
+            >
+              {expandAllDays ? "Alle schließen" : "Alle öffnen"}
+            </button>
+
             <button className="btn-secondary" onClick={clearSelection}>
               Auswahl löschen
             </button>
@@ -1103,10 +1116,21 @@ export default function WeekDetail() {
 
         {days.map((day) => {
           const dayTours = toursByDay[day.id] ?? [];
+          const isOpen = expandAllDays || openDayId === day.id;
+
+          const cancelledCount = dayTours.filter((t) => t.cancelled).length;
+          const singleTripCount = dayTours.filter((t) => t.truck_types?.name === "SingleTrip").length;
+          const returnCount = dayTours.filter((t) => t.truck_types?.name === "Return").length;
 
           return (
             <section key={day.id} className="day-section">
-              <div className="day-section-header">
+              <div
+                className="day-section-header day-section-header-clickable"
+                onClick={() => {
+                  setSelectedDayId(day.id);
+                  setOpenDayId((prev) => (prev === day.id ? null : day.id));
+                }}
+              >
                 <h2>
                   {new Date(day.date).toLocaleDateString("de-DE", {
                     weekday: "long",
@@ -1117,143 +1141,154 @@ export default function WeekDetail() {
 
                 <div className="day-meta">
                   <span>{dayTours.length} Touren</span>
+                  <span>{cancelledCount} storniert</span>
+                  <span>{singleTripCount} SingleTrip</span>
+                  <span>{returnCount} Return</span>
+
                   <button
                     className="btn-secondary"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setSelectedDayId(day.id);
                       setModalOpen(true);
                     }}
                   >
                     + Tour für diesen Tag
                   </button>
+
+                  <span className="day-open-indicator">
+                    {isOpen ? "▾" : "▸"}
+                  </span>
                 </div>
               </div>
 
-              <DayDropZone dayId={day.id} onDropTour={moveTourToDay}>
-                <div className="table-scroll">
-                  <table className="dispo-table">
-                    <thead>
-                      <tr className="group-row">
-                        <th rowSpan={2} className="sticky-col-1 select-col">✓</th>
-                        <th rowSpan={2} className="sticky-col-2 action-col">⇅</th>
-                        <th rowSpan={2} className="sticky-col-3 menu-col">⋯</th>
+              {isOpen && (
+                <DayDropZone dayId={day.id} onDropTour={moveTourToDay}>
+                  <div className="table-scroll">
+                    <table className="dispo-table">
+                      <thead>
+                        <tr className="group-row">
+                          <th rowSpan={2} className="sticky-col-1 select-col">✓</th>
+                          <th rowSpan={2} className="sticky-col-2 action-col">⇅</th>
+                          <th rowSpan={2} className="sticky-col-3 menu-col">⋯</th>
 
-                        {groups.map((group) => {
-                          const groupColumns = columnsByGroup[group.id] ?? [];
-                          if (!groupColumns.length) return null;
+                          {groups.map((group) => {
+                            const groupColumns = columnsByGroup[group.id] ?? [];
+                            if (!groupColumns.length) return null;
+
+                            return (
+                              <th key={group.id} colSpan={groupColumns.length}>
+                                {group.name}
+                              </th>
+                            );
+                          })}
+                        </tr>
+
+                        <tr>
+                          {visibleColumns.map((col) => (
+                            <th key={col.id}>{col.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {dayTours.map((tour) => {
+                          const rowClass = getRowClass(tour);
+                          const isSelected = selectedRows.includes(tour.id);
+                          const menuOpen = openMenuTourId === tour.id;
 
                           return (
-                            <th key={group.id} colSpan={groupColumns.length}>
-                              {group.name}
-                            </th>
+                            <DraggableRow
+                              key={tour.id}
+                              tour={tour}
+                              className={`${rowClass} ${isSelected ? "tour-row-selected" : ""}`}
+                            >
+                              <td className="sticky-col-1 select-col">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleRowSelection(tour.id)}
+                                />
+                              </td>
+
+                              <td className="sticky-col-2 action-col">
+                                <div className="row-actions">
+                                  <button
+                                    className="icon-btn"
+                                    onClick={() => moveTourWithinDay(day.id, tour.id, "up")}
+                                    title="Nach oben"
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    className="icon-btn"
+                                    onClick={() => moveTourWithinDay(day.id, tour.id, "down")}
+                                    title="Nach unten"
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+                              </td>
+
+                              <td className="sticky-col-3 menu-col">
+                                <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    className="icon-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuTourId(menuOpen ? null : tour.id);
+                                    }}
+                                    title="Tour Aktionen"
+                                  >
+                                    ⋯
+                                  </button>
+
+                                  {menuOpen && (
+                                    <div className="tour-menu">
+                                      <button
+                                        className="tour-menu-item"
+                                        onClick={() => toggleCancelled(tour)}
+                                      >
+                                        {tour.cancelled ? "Reaktivieren" : "Stornieren"}
+                                      </button>
+
+                                      <button
+                                        className="tour-menu-item"
+                                        onClick={() => duplicateTour(tour)}
+                                      >
+                                        Duplizieren
+                                      </button>
+
+                                      <button
+                                        className="tour-menu-item tour-menu-item-danger"
+                                        onClick={() => deleteTour(tour)}
+                                      >
+                                        Löschen
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              {visibleColumns.map((col) => (
+                                <td key={col.id}>{renderCell(tour, col)}</td>
+                              ))}
+                            </DraggableRow>
                           );
                         })}
-                      </tr>
 
-                      <tr>
-                        {visibleColumns.map((col) => (
-                          <th key={col.id}>{col.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {dayTours.map((tour) => {
-                        const rowClass = getRowClass(tour);
-                        const isSelected = selectedRows.includes(tour.id);
-                        const menuOpen = openMenuTourId === tour.id;
-
-                        return (
-                          <DraggableRow
-                            key={tour.id}
-                            tour={tour}
-                            className={`${rowClass} ${isSelected ? "tour-row-selected" : ""}`}
-                          >
-                            <td className="sticky-col-1 select-col">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleRowSelection(tour.id)}
-                              />
+                        {dayTours.length === 0 && (
+                          <tr>
+                            <td colSpan={visibleColumns.length + 3} className="empty-day-cell">
+                              Keine Touren. Zieh eine Tour hierher oder lege eine neue an.
                             </td>
-
-                            <td className="sticky-col-2 action-col">
-                              <div className="row-actions">
-                                <button
-                                  className="icon-btn"
-                                  onClick={() => moveTourWithinDay(day.id, tour.id, "up")}
-                                  title="Nach oben"
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  className="icon-btn"
-                                  onClick={() => moveTourWithinDay(day.id, tour.id, "down")}
-                                  title="Nach unten"
-                                >
-                                  ↓
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="sticky-col-3 menu-col">
-                              <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  className="icon-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuTourId(menuOpen ? null : tour.id);
-                                  }}
-                                  title="Tour Aktionen"
-                                >
-                                  ⋯
-                                </button>
-
-                                {menuOpen && (
-                                  <div className="tour-menu">
-                                    <button
-                                      className="tour-menu-item"
-                                      onClick={() => toggleCancelled(tour)}
-                                    >
-                                      {tour.cancelled ? "Reaktivieren" : "Stornieren"}
-                                    </button>
-
-                                    <button
-                                      className="tour-menu-item"
-                                      onClick={() => duplicateTour(tour)}
-                                    >
-                                      Duplizieren
-                                    </button>
-
-                                    <button
-                                      className="tour-menu-item tour-menu-item-danger"
-                                      onClick={() => deleteTour(tour)}
-                                    >
-                                      Löschen
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
-                            {visibleColumns.map((col) => (
-                              <td key={col.id}>{renderCell(tour, col)}</td>
-                            ))}
-                          </DraggableRow>
-                        );
-                      })}
-
-                      {dayTours.length === 0 && (
-                        <tr>
-                          <td colSpan={visibleColumns.length + 3} className="empty-day-cell">
-                            Keine Touren. Zieh eine Tour hierher oder lege eine neue an.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </DayDropZone>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </DayDropZone>
+              )}
             </section>
           );
         })}
