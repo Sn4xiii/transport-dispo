@@ -221,7 +221,7 @@ export default function SidebarLayout({
           <h1>Transportplan Pilsen & Barsinghausen</h1>
 
           <div className="header-actions">
-            <Link href="/profil" className="header-btn" aria-label="Profil">
+            <Link href="/profile" className="header-btn" aria-label="Profil">
               <Settings size={16} />
             </Link>
           </div>
