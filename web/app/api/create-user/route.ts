@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-console.log("SERVICE KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,10));
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,7 +7,15 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
 
-  const { email } = await req.json();
+  const body = await req.json();
+  const email = body?.email;
+
+  if (!email) {
+    return Response.json(
+      { error: "Email fehlt" },
+      { status: 400 }
+    );
+  }
 
   const tempPassword = Math.random().toString(36).slice(-10);
 
@@ -19,6 +26,7 @@ export async function POST(req: Request) {
   });
 
   if (error) {
+    console.error(error);
     return Response.json({ error: error.message }, { status: 400 });
   }
 
