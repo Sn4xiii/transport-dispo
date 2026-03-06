@@ -91,26 +91,7 @@ export default function LoginPage() {
           <div className="login-brand-copy">
             <span className="login-kicker">Transit System</span>
             <h1>Transport Dispo</h1>
-            <p>
-              Planung, Rollen, Touren und Wochenübersichten an einem Ort.
-            </p>
-          </div>
-
-          <div className="login-brand-features">
-            <div className="login-feature">
-              <strong>Dispo</strong>
-              <span>Wochenplanung und Tourensteuerung</span>
-            </div>
-
-            <div className="login-feature">
-              <strong>Admin</strong>
-              <span>Benutzer, Rollen und Berechtigungen</span>
-            </div>
-
-            <div className="login-feature">
-              <strong>Live</strong>
-              <span>Schnelles Arbeiten im Tagesgeschäft</span>
-            </div>
+            <p>Planung, Rollen, Touren und Wochenübersichten an einem Ort.</p>
           </div>
         </div>
 
@@ -152,7 +133,6 @@ export default function LoginPage() {
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
