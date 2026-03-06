@@ -118,7 +118,6 @@ type DragItem = {
 };
 
 type BulkMode = "system" | "custom";
-
 type MenuDirection = "up" | "down";
 
 const DND_TYPE = "TOUR_ROW";
@@ -137,15 +136,20 @@ function isSystemColumn(col: TourColumn) {
 }
 
 function getFieldType(col: TourColumn) {
-  return ((col as any).field_type ?? "text") as
-    | "text"
-    | "date"
-    | "time"
-    | "boolean";
+  return ((col as any).field_type ?? "text") as "text" | "date" | "time" | "boolean";
 }
 
 function getTourFieldValue(tour: TourWithRelations, key: string) {
   return (tour as Record<string, unknown>)[key];
+}
+
+function formatDayLabel(dateString: string) {
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(`${dateString}T00:00:00Z`));
 }
 
 /* ================= DND ================= */
@@ -235,6 +239,8 @@ export default function WeekDetail() {
   const params = useParams();
   const weekId = params.id as string;
 
+  const [mounted, setMounted] = useState(false);
+
   const [week, setWeek] = useState<PlanningWeek | null>(null);
   const [days, setDays] = useState<PlanningDay[]>([]);
   const [columns, setColumns] = useState<TourColumn[]>([]);
@@ -249,8 +255,11 @@ export default function WeekDetail() {
   const [bulkMode, setBulkMode] = useState<BulkMode>("system");
   const [bulkColumnId, setBulkColumnId] = useState("");
   const [bulkValue, setBulkValue] = useState("");
+
   const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
-  const [menuDirectionByTour, setMenuDirectionByTour] = useState<Record<string, MenuDirection>>({});
+  const [menuDirectionByTour, setMenuDirectionByTour] = useState<Record<string, MenuDirection>>(
+    {}
+  );
 
   const [openDayId, setOpenDayId] = useState<string | null>(null);
   const [expandAllDays, setExpandAllDays] = useState(false);
@@ -260,24 +269,29 @@ export default function WeekDetail() {
   const [settingsUserKey, setSettingsUserKey] = useState<string>("anonymous");
 
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const groupSettingsRef = useRef<HTMLDivElement | null>(null);
+
+  /* ================= MOUNT ================= */
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /* ================= USER SETTINGS KEY ================= */
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     async function loadUserKey() {
       const { data } = await supabase.auth.getUser();
-      const uid = data.user?.id ?? "anonymous";
-      if (mounted) {
-        setSettingsUserKey(uid);
-      }
+      if (!active) return;
+      setSettingsUserKey(data.user?.id ?? "anonymous");
     }
 
     loadUserKey();
 
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
@@ -286,7 +300,7 @@ export default function WeekDetail() {
   useEffect(() => {
     if (!weekId) return;
 
-    let isMounted = true;
+    let active = true;
 
     async function loadWeek() {
       setLoading(true);
@@ -345,7 +359,7 @@ export default function WeekDetail() {
         valueMap[val.tour_id][val.column_id] = val.value ?? "";
       });
 
-      if (!isMounted) return;
+      if (!active) return;
 
       setWeek(weekData ?? null);
       setDays(dayData ?? []);
@@ -358,21 +372,13 @@ export default function WeekDetail() {
         const today = new Date().toISOString().slice(0, 10);
         const todayDay = dayData?.find((d) => d.date === today);
         const initialDayId = todayDay?.id ?? dayData?.[0]?.id ?? null;
-
         setSelectedDayId(initialDayId);
         setOpenDayId(initialDayId);
       }
 
       const firstSystemColumn = (columnData ?? []).find((c) => (c as any).is_system);
       const firstCustomColumn = (columnData ?? []).find((c) => !(c as any).is_system);
-
       setBulkColumnId(firstSystemColumn?.id ?? firstCustomColumn?.id ?? "");
-
-      const initialGroupVisibility: Record<string, boolean> = {};
-      (groupData ?? []).forEach((g) => {
-        initialGroupVisibility[g.id] = true;
-      });
-      setGroupVisibility(initialGroupVisibility);
 
       setLoading(false);
     }
@@ -380,23 +386,24 @@ export default function WeekDetail() {
     loadWeek();
 
     return () => {
-      isMounted = false;
+      active = false;
     };
   }, [weekId]);
 
   /* ================= LOAD / SAVE GROUP VISIBILITY ================= */
 
   useEffect(() => {
-    if (!groups.length) return;
+    if (!mounted || !groups.length) return;
 
     const storageKey = `week-group-visibility:${settingsUserKey}`;
-    const raw = localStorage.getItem(storageKey);
+    const raw = window.localStorage.getItem(storageKey);
+
+    const defaults: Record<string, boolean> = {};
+    groups.forEach((g) => {
+      defaults[g.id] = true;
+    });
 
     if (!raw) {
-      const defaults: Record<string, boolean> = {};
-      groups.forEach((g) => {
-        defaults[g.id] = true;
-      });
       setGroupVisibility(defaults);
       return;
     }
@@ -404,41 +411,45 @@ export default function WeekDetail() {
     try {
       const parsed = JSON.parse(raw) as Record<string, boolean>;
       const merged: Record<string, boolean> = {};
-
       groups.forEach((g) => {
         merged[g.id] = parsed[g.id] ?? true;
       });
-
       setGroupVisibility(merged);
     } catch {
-      const defaults: Record<string, boolean> = {};
-      groups.forEach((g) => {
-        defaults[g.id] = true;
-      });
       setGroupVisibility(defaults);
     }
-  }, [groups, settingsUserKey]);
+  }, [mounted, groups, settingsUserKey]);
 
   useEffect(() => {
-    if (!groups.length) return;
+    if (!mounted || !groups.length) return;
     const storageKey = `week-group-visibility:${settingsUserKey}`;
-    localStorage.setItem(storageKey, JSON.stringify(groupVisibility));
-  }, [groupVisibility, groups, settingsUserKey]);
+    window.localStorage.setItem(storageKey, JSON.stringify(groupVisibility));
+  }, [mounted, groupVisibility, groups, settingsUserKey]);
 
-  /* ================= MENU CLOSE ================= */
+  /* ================= OUTSIDE CLICK ================= */
 
   useEffect(() => {
-    function handleClick() {
+    function handleClick(event: MouseEvent) {
+      const target = event.target as Node | null;
+
+      if (
+        groupSettingsRef.current &&
+        target &&
+        groupSettingsRef.current.contains(target)
+      ) {
+        return;
+      }
+
       setOpenMenuTourId(null);
       setShowGroupSettings(false);
     }
 
     if (openMenuTourId || showGroupSettings) {
-      window.addEventListener("click", handleClick);
+      window.addEventListener("mousedown", handleClick);
     }
 
     return () => {
-      window.removeEventListener("click", handleClick);
+      window.removeEventListener("mousedown", handleClick);
     };
   }, [openMenuTourId, showGroupSettings]);
 
@@ -526,7 +537,9 @@ export default function WeekDetail() {
   }, [visibleGroups]);
 
   const visibleColumns = useMemo(() => {
-    return columns.filter((c) => c.is_visible && c.column_group_id && visibleGroupIds.has(c.column_group_id));
+    return columns.filter(
+      (c) => c.is_visible && c.column_group_id && visibleGroupIds.has(c.column_group_id)
+    );
   }, [columns, visibleGroupIds]);
 
   const columnsByGroup = useMemo(() => {
@@ -788,9 +801,7 @@ export default function WeekDetail() {
 
         setTours((prev) =>
           prev.map((tour) =>
-            selectedRows.includes(tour.id)
-              ? { ...tour, [key]: boolValue }
-              : tour
+            selectedRows.includes(tour.id) ? { ...tour, [key]: boolValue } : tour
           )
         );
 
@@ -802,9 +813,7 @@ export default function WeekDetail() {
       } else {
         setTours((prev) =>
           prev.map((tour) =>
-            selectedRows.includes(tour.id)
-              ? { ...tour, [key]: bulkValue }
-              : tour
+            selectedRows.includes(tour.id) ? { ...tour, [key]: bulkValue } : tour
           )
         );
 
@@ -848,11 +857,7 @@ export default function WeekDetail() {
     const nextValue = !tour.cancelled;
 
     setTours((prev) =>
-      prev.map((t) =>
-        t.id === tour.id
-          ? { ...t, cancelled: nextValue }
-          : t
-      )
+      prev.map((t) => (t.id === tour.id ? { ...t, cancelled: nextValue } : t))
     );
 
     const { error } = await supabase
@@ -1020,11 +1025,7 @@ export default function WeekDetail() {
             const newValue = e.target.checked;
 
             setTours((prev) =>
-              prev.map((t) =>
-                t.id === tour.id
-                  ? { ...t, [key]: newValue }
-                  : t
-              )
+              prev.map((t) => (t.id === tour.id ? { ...t, [key]: newValue } : t))
             );
 
             queueTourFieldSave(tour.id, key, newValue);
@@ -1043,11 +1044,7 @@ export default function WeekDetail() {
             const newValue = e.target.value || null;
 
             setTours((prev) =>
-              prev.map((t) =>
-                t.id === tour.id
-                  ? { ...t, [key]: newValue }
-                  : t
-              )
+              prev.map((t) => (t.id === tour.id ? { ...t, [key]: newValue } : t))
             );
 
             queueTourFieldSave(tour.id, key, newValue);
@@ -1066,11 +1063,7 @@ export default function WeekDetail() {
             const newValue = e.target.value || null;
 
             setTours((prev) =>
-              prev.map((t) =>
-                t.id === tour.id
-                  ? { ...t, [key]: newValue }
-                  : t
-              )
+              prev.map((t) => (t.id === tour.id ? { ...t, [key]: newValue } : t))
             );
 
             queueTourFieldSave(tour.id, key, newValue);
@@ -1088,11 +1081,7 @@ export default function WeekDetail() {
           const newValue = e.target.value;
 
           setTours((prev) =>
-            prev.map((t) =>
-              t.id === tour.id
-                ? { ...t, [key]: newValue }
-                : t
-            )
+            prev.map((t) => (t.id === tour.id ? { ...t, [key]: newValue } : t))
           );
 
           queueTourFieldSave(tour.id, key, newValue);
@@ -1131,14 +1120,14 @@ export default function WeekDetail() {
   }
 
   function renderCell(tour: TourWithRelations, col: TourColumn) {
-    if (isSystemColumn(col)) {
-      return renderSystemCell(tour, col);
-    }
-
-    return renderCustomCell(tour, col);
+    return isSystemColumn(col) ? renderSystemCell(tour, col) : renderCustomCell(tour, col);
   }
 
   /* ================= UI ================= */
+
+  if (!mounted) {
+    return <div className="week-container">Lade Woche...</div>;
+  }
 
   if (loading) {
     return <div className="week-container">Lade Woche...</div>;
@@ -1166,8 +1155,13 @@ export default function WeekDetail() {
               <div className="selection-badge">{selectedRows.length} markiert</div>
             )}
 
-            <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="tour-menu-wrap"
+              ref={groupSettingsRef}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
+                type="button"
                 className="btn-secondary"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1182,17 +1176,36 @@ export default function WeekDetail() {
                   <div className="group-settings-header">Gruppen anzeigen</div>
 
                   <div className="group-settings-actions">
-                    <button className="tour-menu-item" onClick={showAllGroups}>
+                    <button
+                      type="button"
+                      className="tour-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showAllGroups();
+                      }}
+                    >
                       Alle anzeigen
                     </button>
-                    <button className="tour-menu-item" onClick={hideAllGroups}>
+
+                    <button
+                      type="button"
+                      className="tour-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hideAllGroups();
+                      }}
+                    >
                       Alle ausblenden
                     </button>
                   </div>
 
                   <div className="group-settings-list">
                     {groups.map((group) => (
-                      <label key={group.id} className="group-settings-item">
+                      <label
+                        key={group.id}
+                        className="group-settings-item"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={groupVisibility[group.id] !== false}
@@ -1207,17 +1220,22 @@ export default function WeekDetail() {
             </div>
 
             <button
+              type="button"
               className="btn-secondary"
               onClick={() => setExpandAllDays((prev) => !prev)}
             >
               {expandAllDays ? "Alle schließen" : "Alle öffnen"}
             </button>
 
-            <button className="btn-secondary" onClick={clearSelection}>
+            <button type="button" className="btn-secondary" onClick={clearSelection}>
               Auswahl löschen
             </button>
 
-            <button className="btn-primary" onClick={() => setModalOpen(true)}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setModalOpen(true)}
+            >
               + Neue Tour
             </button>
           </div>
@@ -1259,7 +1277,7 @@ export default function WeekDetail() {
               onChange={(e) => setBulkValue(e.target.value)}
             />
 
-            <button className="btn-primary" onClick={applyBulkEdit}>
+            <button type="button" className="btn-primary" onClick={applyBulkEdit}>
               Auf markierte anwenden
             </button>
           </div>
@@ -1270,7 +1288,9 @@ export default function WeekDetail() {
           const isOpen = expandAllDays || openDayId === day.id;
 
           const cancelledCount = dayTours.filter((t) => t.cancelled).length;
-          const singleTripCount = dayTours.filter((t) => t.truck_types?.name === "SingleTrip").length;
+          const singleTripCount = dayTours.filter(
+            (t) => t.truck_types?.name === "SingleTrip"
+          ).length;
           const returnCount = dayTours.filter((t) => t.truck_types?.name === "Return").length;
 
           return (
@@ -1282,13 +1302,7 @@ export default function WeekDetail() {
                   setOpenDayId((prev) => (prev === day.id ? null : day.id));
                 }}
               >
-                <h2>
-                  {new Date(day.date).toLocaleDateString("de-DE", {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "2-digit",
-                  })}
-                </h2>
+                <h2>{formatDayLabel(day.date)}</h2>
 
                 <div className="day-meta">
                   <span>{dayTours.length} Touren</span>
@@ -1297,6 +1311,7 @@ export default function WeekDetail() {
                   <span>{returnCount} Return</span>
 
                   <button
+                    type="button"
                     className="btn-secondary"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1307,9 +1322,7 @@ export default function WeekDetail() {
                     + Tour für diesen Tag
                   </button>
 
-                  <span className="day-open-indicator">
-                    {isOpen ? "▾" : "▸"}
-                  </span>
+                  <span className="day-open-indicator">{isOpen ? "▾" : "▸"}</span>
                 </div>
               </div>
 
@@ -1319,9 +1332,15 @@ export default function WeekDetail() {
                     <table className="dispo-table">
                       <thead>
                         <tr className="group-row">
-                          <th rowSpan={2} className="sticky-col-1 select-col">✓</th>
-                          <th rowSpan={2} className="sticky-col-2 action-col">⇅</th>
-                          <th rowSpan={2} className="sticky-col-3 menu-col">⋯</th>
+                          <th rowSpan={2} className="sticky-col-1 select-col">
+                            ✓
+                          </th>
+                          <th rowSpan={2} className="sticky-col-2 action-col">
+                            ⇅
+                          </th>
+                          <th rowSpan={2} className="sticky-col-3 menu-col">
+                            ⋯
+                          </th>
 
                           {visibleGroups.map((group) => {
                             const groupColumns = columnsByGroup[group.id] ?? [];
@@ -1365,15 +1384,24 @@ export default function WeekDetail() {
                               <td className="sticky-col-2 action-col">
                                 <div className="row-actions">
                                   <button
+                                    type="button"
                                     className="icon-btn"
-                                    onClick={() => moveTourWithinDay(day.id, tour.id, "up")}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      moveTourWithinDay(day.id, tour.id, "up");
+                                    }}
                                     title="Nach oben"
                                   >
                                     ↑
                                   </button>
+
                                   <button
+                                    type="button"
                                     className="icon-btn"
-                                    onClick={() => moveTourWithinDay(day.id, tour.id, "down")}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      moveTourWithinDay(day.id, tour.id, "down");
+                                    }}
                                     title="Nach unten"
                                   >
                                     ↓
@@ -1382,8 +1410,12 @@ export default function WeekDetail() {
                               </td>
 
                               <td className="sticky-col-3 menu-col">
-                                <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  className="tour-menu-wrap"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <button
+                                    type="button"
                                     className="icon-btn"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1417,6 +1449,7 @@ export default function WeekDetail() {
                                       }`}
                                     >
                                       <button
+                                        type="button"
                                         className="tour-menu-item"
                                         onClick={() => toggleCancelled(tour)}
                                       >
@@ -1424,6 +1457,7 @@ export default function WeekDetail() {
                                       </button>
 
                                       <button
+                                        type="button"
                                         className="tour-menu-item"
                                         onClick={() => duplicateTour(tour)}
                                       >
@@ -1431,6 +1465,7 @@ export default function WeekDetail() {
                                       </button>
 
                                       <button
+                                        type="button"
                                         className="tour-menu-item tour-menu-item-danger"
                                         onClick={() => deleteTour(tour)}
                                       >
