@@ -15,8 +15,6 @@ type PlanningWeek = {
   id: string;
   year: number;
   week_number: number;
-  start_date?: string;
-  end_date?: string;
 };
 
 type PlanningDay = {
@@ -33,11 +31,6 @@ type ColumnGroup = {
   is_visible?: boolean;
 };
 
-type TruckTypeRelation = {
-  id?: string;
-  name: string;
-} | null;
-
 type TourWithRelations = Tour & {
   cancelled?: boolean | null;
   truck_number?: string | null;
@@ -45,7 +38,78 @@ type TourWithRelations = Tour & {
   planning_day_id?: string | null;
   position?: number | null;
   truck_type_id?: string | null;
-  truck_types?: TruckTypeRelation;
+  truck_types?: {
+    id?: string;
+    name: string;
+  } | null;
+
+  gps_link?: string | null;
+
+  pls_shift_loading_date?: string | null;
+  pls_shift_loading_time?: string | null;
+  pls_shift_planned_date?: string | null;
+  pls_shift_planned_time?: string | null;
+  pls_shift_registered_arrival_date?: string | null;
+  pls_shift_registered_arrival_time?: string | null;
+
+  bgn_shift_loading_arrival_date?: string | null;
+  bgn_shift_loading_arrival_time?: string | null;
+  bgn_shift_loading_departure_date?: string | null;
+  bgn_shift_loading_departure_time?: string | null;
+  bgn_shift_delivery_note?: string | null;
+
+  bgn_shift_unloading_planned_date?: string | null;
+  bgn_shift_unloading_planned_time?: string | null;
+  bgn_shift_unloading_arrival_date?: string | null;
+  bgn_shift_unloading_arrival_time?: string | null;
+  bgn_shift_unloading_start_date?: string | null;
+  bgn_shift_unloading_start_time?: string | null;
+  bgn_shift_unloading_departure_date?: string | null;
+  bgn_shift_unloading_departure_time?: string | null;
+
+  container_arrival_check?: string | null;
+
+  ewals_delivery_note?: string | null;
+  ewals_cmr?: string | null;
+  ewals_actual?: string | null;
+  ewals_damage?: string | null;
+
+  empties_delivery_note?: string | null;
+  empties_green?: boolean | null;
+  empties_menthol?: boolean | null;
+  empties_lightblue?: boolean | null;
+  empties_darkblue?: boolean | null;
+  empties_pink?: boolean | null;
+  empties_purple?: boolean | null;
+  empties_white_karton?: boolean | null;
+
+  pls_plant_unloading_planned_date?: string | null;
+  pls_plant_unloading_planned_time?: string | null;
+
+  ceva_registered_arrival_empties_date?: string | null;
+  ceva_registered_arrival_empties_time?: string | null;
+  rt_st?: string | null;
+  plate_numbers?: string | null;
+  waiting_times?: string | null;
+  comment?: string | null;
+
+  reason_kpi_code_1?: string | null;
+  reason_kpi_code_2?: string | null;
+
+  delay_1?: string | null;
+  delay_2?: string | null;
+  delay_3?: string | null;
+  delay_4?: string | null;
+
+  loading_pls?: string | null;
+  unloading_empties_pls?: string | null;
+  result_1?: string | null;
+  result_2?: string | null;
+  unloading_result_1?: string | null;
+  unloading_result_2?: string | null;
+
+  eta_bgn_date?: string | null;
+  eta_bgn_time?: string | null;
 };
 
 type DragItem = {
@@ -53,32 +117,33 @@ type DragItem = {
   sourceDayId: string | null;
 };
 
-type CellCoord = {
-  row: number;
-  col: number;
-};
-
-type BulkMode = "truck_number" | "custom";
+type BulkMode = "system" | "custom";
 
 const DND_TYPE = "TOUR_ROW";
 
 /* ================= HELPERS ================= */
-
-function toDatetimeLocal(value: string | null | undefined) {
-  if (!value) return "";
-  return value.slice(0, 16);
-}
-
-function fromDatetimeLocal(value: string) {
-  if (!value) return null;
-  return value.length === 16 ? `${value}:00` : value;
-}
 
 function getRowClass(tour: TourWithRelations) {
   if (tour.cancelled) return "tour-row tour-row-cancelled";
   if (tour.truck_types?.name === "SingleTrip") return "tour-row tour-row-singletrip";
   if (tour.truck_types?.name === "Return") return "tour-row tour-row-return";
   return "tour-row";
+}
+
+function isSystemColumn(col: TourColumn) {
+  return Boolean((col as any).is_system);
+}
+
+function getFieldType(col: TourColumn) {
+  return ((col as any).field_type ?? "text") as
+    | "text"
+    | "date"
+    | "time"
+    | "boolean";
+}
+
+function getTourFieldValue(tour: TourWithRelations, key: string) {
+  return (tour as Record<string, unknown>)[key];
 }
 
 /* ================= DND ================= */
@@ -179,10 +244,9 @@ export default function WeekDetail() {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [copiedCellValue, setCopiedCellValue] = useState("");
-  const [bulkMode, setBulkMode] = useState<BulkMode>("truck_number");
-  const [bulkValue, setBulkValue] = useState("");
+  const [bulkMode, setBulkMode] = useState<BulkMode>("system");
   const [bulkColumnId, setBulkColumnId] = useState("");
+  const [bulkValue, setBulkValue] = useState("");
   const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
 
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -197,41 +261,33 @@ export default function WeekDetail() {
     async function loadWeek() {
       setLoading(true);
 
-      const { data: weekData, error: weekError } = await supabase
+      const { data: weekData } = await supabase
         .from("planning_weeks")
         .select("*")
         .eq("id", weekId)
         .maybeSingle();
 
-      if (weekError) console.error("planning_weeks load error", weekError);
-
-      const { data: dayData, error: dayError } = await supabase
+      const { data: dayData } = await supabase
         .from("planning_days")
         .select("*")
         .eq("planning_week_id", weekId)
         .order("date");
 
-      if (dayError) console.error("planning_days load error", dayError);
-
-      const { data: groupData, error: groupError } = await supabase
+      const { data: groupData } = await supabase
         .from("column_groups")
         .select("*")
         .eq("is_visible", true)
         .order("order_index");
 
-      if (groupError) console.error("column_groups load error", groupError);
-
-      const { data: columnData, error: columnError } = await supabase
+      const { data: columnData } = await supabase
         .from("tour_columns")
         .select("*")
         .eq("is_visible", true)
         .order("order_index");
 
-      if (columnError) console.error("tour_columns load error", columnError);
-
       const dayIds = (dayData ?? []).map((d) => d.id);
 
-      const tourResponse =
+      const { data: tourData } =
         dayIds.length > 0
           ? await supabase
               .from("tours")
@@ -239,25 +295,21 @@ export default function WeekDetail() {
               .in("planning_day_id", dayIds)
               .order("planning_day_id")
               .order("position")
-          : { data: [], error: null };
+          : { data: [] };
 
-      if (tourResponse.error) console.error("tours load error", tourResponse.error);
+      const tourIds = (tourData ?? []).map((t) => t.id);
 
-      const tourData = (tourResponse.data ?? []) as TourWithRelations[];
-      const tourIds = tourData.map((t) => t.id);
-
-      const valueResponse =
+      const { data: valueData } =
         tourIds.length > 0
-          ? await supabase.from("tour_column_values").select("*").in("tour_id", tourIds)
-          : { data: [], error: null };
-
-      if (valueResponse.error) {
-        console.error("tour_column_values load error", valueResponse.error);
-      }
+          ? await supabase
+              .from("tour_column_values")
+              .select("*")
+              .in("tour_id", tourIds)
+          : { data: [] };
 
       const valueMap: Record<string, Record<string, string>> = {};
 
-      ((valueResponse.data ?? []) as TourValue[]).forEach((val) => {
+      ((valueData ?? []) as TourValue[]).forEach((val) => {
         if (!val.tour_id || !val.column_id) return;
         if (!valueMap[val.tour_id]) valueMap[val.tour_id] = {};
         valueMap[val.tour_id][val.column_id] = val.value ?? "";
@@ -269,7 +321,7 @@ export default function WeekDetail() {
       setDays(dayData ?? []);
       setGroups(groupData ?? []);
       setColumns(columnData ?? []);
-      setTours(tourData);
+      setTours((tourData ?? []) as TourWithRelations[]);
       setValues(valueMap);
 
       if ((dayData ?? []).length > 0) {
@@ -278,14 +330,10 @@ export default function WeekDetail() {
         setSelectedDayId(todayDay?.id ?? dayData?.[0]?.id ?? null);
       }
 
-      const customColumns = (columnData ?? []).filter(
-        (col) =>
-          col.key !== "truck_number" &&
-          col.key !== "truck_type_id" &&
-          col.key !== "planned_arrival_werk1"
-      );
+      const firstSystemColumn = (columnData ?? []).find((c) => (c as any).is_system);
+      const firstCustomColumn = (columnData ?? []).find((c) => !(c as any).is_system);
 
-      setBulkColumnId(customColumns[0]?.id ?? "");
+      setBulkColumnId(firstSystemColumn?.id ?? firstCustomColumn?.id ?? "");
       setLoading(false);
     }
 
@@ -296,7 +344,7 @@ export default function WeekDetail() {
     };
   }, [weekId]);
 
-  /* ================= CLICK OUTSIDE MENU ================= */
+  /* ================= MENU CLOSE ================= */
 
   useEffect(() => {
     function handleClick() {
@@ -425,24 +473,6 @@ export default function WeekDetail() {
 
   /* ================= SAVE ================= */
 
-  const queueColumnSave = useCallback((tourId: string, columnId: string, value: string) => {
-    const timerKey = `${tourId}:${columnId}`;
-
-    if (saveTimersRef.current[timerKey]) {
-      clearTimeout(saveTimersRef.current[timerKey]);
-    }
-
-    saveTimersRef.current[timerKey] = setTimeout(async () => {
-      const { error } = await supabase.from("tour_column_values").upsert({
-        tour_id: tourId,
-        column_id: columnId,
-        value,
-      });
-
-      if (error) console.error("tour_column_values save error", error);
-    }, 300);
-  }, []);
-
   const queueTourFieldSave = useCallback((tourId: string, field: string, value: unknown) => {
     const timerKey = `${tourId}:field:${field}`;
 
@@ -451,13 +481,40 @@ export default function WeekDetail() {
     }
 
     saveTimersRef.current[timerKey] = setTimeout(async () => {
-      const { error } = await supabase.from("tours").update({ [field]: value }).eq("id", tourId);
+      const { error } = await supabase
+        .from("tours")
+        .update({ [field]: value })
+        .eq("id", tourId);
 
-      if (error) console.error(`tours save error for ${field}`, error);
-    }, 300);
+      if (error) {
+        console.error(`save tours field ${field} failed`, error);
+      }
+    }, 250);
   }, []);
 
-  /* ================= POSITION / REORDER ================= */
+  const queueCustomValueSave = useCallback((tourId: string, columnId: string, value: string) => {
+    const timerKey = `${tourId}:custom:${columnId}`;
+
+    if (saveTimersRef.current[timerKey]) {
+      clearTimeout(saveTimersRef.current[timerKey]);
+    }
+
+    saveTimersRef.current[timerKey] = setTimeout(async () => {
+      const { error } = await supabase
+        .from("tour_column_values")
+        .upsert({
+          tour_id: tourId,
+          column_id: columnId,
+          value,
+        });
+
+      if (error) {
+        console.error("save custom value failed", error);
+      }
+    }, 250);
+  }, []);
+
+  /* ================= DND / POSITION ================= */
 
   async function persistDayPositions(dayId: string, dayTours: TourWithRelations[]) {
     const updates = dayTours.map((tour, index) =>
@@ -469,7 +526,9 @@ export default function WeekDetail() {
 
     const results = await Promise.all(updates);
     results.forEach((result) => {
-      if (result.error) console.error("position update error", result.error);
+      if (result.error) {
+        console.error("position update error", result.error);
+      }
     });
   }
 
@@ -508,8 +567,6 @@ export default function WeekDetail() {
     },
     [toursByDay]
   );
-
-  /* ================= DND SAVE ================= */
 
   const moveTourToDay = useCallback(
     async (tourId: string, targetDayId: string) => {
@@ -551,6 +608,7 @@ export default function WeekDetail() {
       });
 
       const targetCount = (toursByDay[targetDayId] ?? []).length;
+
       const { error } = await supabase
         .from("tours")
         .update({
@@ -585,73 +643,6 @@ export default function WeekDetail() {
     [days, tours, toursByDay]
   );
 
-  /* ================= KEYBOARD NAV ================= */
-
-  function getCellInput(row: number, col: number) {
-    return document.querySelector<HTMLInputElement>(`[data-row="${row}"][data-col="${col}"]`);
-  }
-
-  function handleCellKeyDown(
-    e: React.KeyboardEvent<HTMLInputElement>,
-    coord: CellCoord,
-    currentValue: string,
-    onPasteValue?: (value: string) => void
-  ) {
-    const { row, col } = coord;
-
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-      e.preventDefault();
-      setCopiedCellValue(currentValue);
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
-      if (!copiedCellValue || !onPasteValue) return;
-      e.preventDefault();
-      onPasteValue(copiedCellValue);
-      return;
-    }
-
-    if (e.key === "Enter") {
-      e.preventDefault();
-      getCellInput(row + 1, col)?.focus();
-      return;
-    }
-
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (e.shiftKey) {
-        getCellInput(row, col - 1)?.focus();
-      } else {
-        getCellInput(row, col + 1)?.focus();
-      }
-      return;
-    }
-
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      getCellInput(row, col + 1)?.focus();
-      return;
-    }
-
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      getCellInput(row, col - 1)?.focus();
-      return;
-    }
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      getCellInput(row + 1, col)?.focus();
-      return;
-    }
-
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      getCellInput(row - 1, col)?.focus();
-    }
-  }
-
   /* ================= ROW SELECT ================= */
 
   function toggleRowSelection(tourId: string) {
@@ -667,38 +658,53 @@ export default function WeekDetail() {
   /* ================= BULK EDIT ================= */
 
   async function applyBulkEdit() {
-    if (selectedRows.length === 0 || !bulkValue.trim()) return;
+    if (selectedRows.length === 0 || !bulkColumnId || !bulkValue.trim()) return;
 
-    if (bulkMode === "truck_number") {
-      setTours((prev) =>
-        prev.map((tour) =>
-          selectedRows.includes(tour.id)
-            ? {
-                ...tour,
-                truck_number: bulkValue,
-              }
-            : tour
-        )
-      );
+    const selectedColumn = columns.find((c) => c.id === bulkColumnId);
+    if (!selectedColumn) return;
 
-      const updates = selectedRows.map((tourId) =>
-        supabase.from("tours").update({ truck_number: bulkValue }).eq("id", tourId)
-      );
+    if (isSystemColumn(selectedColumn)) {
+      const key = selectedColumn.key;
 
-      const results = await Promise.all(updates);
-      results.forEach((result) => {
-        if (result.error) console.error("bulk truck_number error", result.error);
-      });
-    }
+      if (getFieldType(selectedColumn) === "boolean") {
+        const boolValue = bulkValue === "true";
 
-    if (bulkMode === "custom" && bulkColumnId) {
+        setTours((prev) =>
+          prev.map((tour) =>
+            selectedRows.includes(tour.id)
+              ? { ...tour, [key]: boolValue }
+              : tour
+          )
+        );
+
+        const updates = selectedRows.map((tourId) =>
+          supabase.from("tours").update({ [key]: boolValue }).eq("id", tourId)
+        );
+
+        await Promise.all(updates);
+      } else {
+        setTours((prev) =>
+          prev.map((tour) =>
+            selectedRows.includes(tour.id)
+              ? { ...tour, [key]: bulkValue }
+              : tour
+          )
+        );
+
+        const updates = selectedRows.map((tourId) =>
+          supabase.from("tours").update({ [key]: bulkValue }).eq("id", tourId)
+        );
+
+        await Promise.all(updates);
+      }
+    } else {
       setValues((prev) => {
         const next = { ...prev };
 
         selectedRows.forEach((tourId) => {
           next[tourId] = {
             ...(next[tourId] ?? {}),
-            [bulkColumnId]: bulkValue,
+            [selectedColumn.id]: bulkValue,
           };
         });
 
@@ -708,15 +714,12 @@ export default function WeekDetail() {
       const updates = selectedRows.map((tourId) =>
         supabase.from("tour_column_values").upsert({
           tour_id: tourId,
-          column_id: bulkColumnId,
+          column_id: selectedColumn.id,
           value: bulkValue,
         })
       );
 
-      const results = await Promise.all(updates);
-      results.forEach((result) => {
-        if (result.error) console.error("bulk custom column error", result.error);
-      });
+      await Promise.all(updates);
     }
 
     setBulkValue("");
@@ -730,10 +733,7 @@ export default function WeekDetail() {
     setTours((prev) =>
       prev.map((t) =>
         t.id === tour.id
-          ? {
-              ...t,
-              cancelled: nextValue,
-            }
+          ? { ...t, cancelled: nextValue }
           : t
       )
     );
@@ -757,15 +757,7 @@ export default function WeekDetail() {
     setTours((prev) => prev.filter((t) => t.id !== tour.id));
     setSelectedRows((prev) => prev.filter((id) => id !== tour.id));
 
-    const { error: deleteValuesError } = await supabase
-      .from("tour_column_values")
-      .delete()
-      .eq("tour_id", tour.id);
-
-    if (deleteValuesError) {
-      console.error("delete tour values error", deleteValuesError);
-    }
-
+    await supabase.from("tour_column_values").delete().eq("tour_id", tour.id);
     const { error } = await supabase.from("tours").delete().eq("id", tour.id);
 
     if (error) {
@@ -781,163 +773,229 @@ export default function WeekDetail() {
 
     const nextPosition = ((toursByDay[targetDayId] ?? []).length || 0) + 1;
 
-    const insertPayload: Partial<TourWithRelations> = {
+    const duplicatePayload = {
       planning_day_id: targetDayId,
       position: nextPosition,
-      truck_number: tour.truck_number ?? null,
-      planned_arrival_werk1: tour.planned_arrival_werk1 ?? null,
-      truck_type_id: tour.truck_type_id ?? null,
+
+      gps_link: tour.gps_link ?? null,
+
+      pls_shift_loading_date: tour.pls_shift_loading_date ?? null,
+      pls_shift_loading_time: tour.pls_shift_loading_time ?? null,
+      pls_shift_planned_date: tour.pls_shift_planned_date ?? null,
+      pls_shift_planned_time: tour.pls_shift_planned_time ?? null,
+      pls_shift_registered_arrival_date: tour.pls_shift_registered_arrival_date ?? null,
+      pls_shift_registered_arrival_time: tour.pls_shift_registered_arrival_time ?? null,
+
+      bgn_shift_loading_arrival_date: tour.bgn_shift_loading_arrival_date ?? null,
+      bgn_shift_loading_arrival_time: tour.bgn_shift_loading_arrival_time ?? null,
+      bgn_shift_loading_departure_date: tour.bgn_shift_loading_departure_date ?? null,
+      bgn_shift_loading_departure_time: tour.bgn_shift_loading_departure_time ?? null,
+      bgn_shift_delivery_note: tour.bgn_shift_delivery_note ?? null,
+
+      bgn_shift_unloading_planned_date: tour.bgn_shift_unloading_planned_date ?? null,
+      bgn_shift_unloading_planned_time: tour.bgn_shift_unloading_planned_time ?? null,
+      bgn_shift_unloading_arrival_date: tour.bgn_shift_unloading_arrival_date ?? null,
+      bgn_shift_unloading_arrival_time: tour.bgn_shift_unloading_arrival_time ?? null,
+      bgn_shift_unloading_start_date: tour.bgn_shift_unloading_start_date ?? null,
+      bgn_shift_unloading_start_time: tour.bgn_shift_unloading_start_time ?? null,
+      bgn_shift_unloading_departure_date: tour.bgn_shift_unloading_departure_date ?? null,
+      bgn_shift_unloading_departure_time: tour.bgn_shift_unloading_departure_time ?? null,
+
+      container_arrival_check: tour.container_arrival_check ?? null,
+
+      ewals_delivery_note: tour.ewals_delivery_note ?? null,
+      ewals_cmr: tour.ewals_cmr ?? null,
+      ewals_actual: tour.ewals_actual ?? null,
+      ewals_damage: tour.ewals_damage ?? null,
+
+      empties_delivery_note: tour.empties_delivery_note ?? null,
+      empties_green: tour.empties_green ?? false,
+      empties_menthol: tour.empties_menthol ?? false,
+      empties_lightblue: tour.empties_lightblue ?? false,
+      empties_darkblue: tour.empties_darkblue ?? false,
+      empties_pink: tour.empties_pink ?? false,
+      empties_purple: tour.empties_purple ?? false,
+      empties_white_karton: tour.empties_white_karton ?? false,
+
+      pls_plant_unloading_planned_date: tour.pls_plant_unloading_planned_date ?? null,
+      pls_plant_unloading_planned_time: tour.pls_plant_unloading_planned_time ?? null,
+
+      ceva_registered_arrival_empties_date: tour.ceva_registered_arrival_empties_date ?? null,
+      ceva_registered_arrival_empties_time: tour.ceva_registered_arrival_empties_time ?? null,
+      rt_st: tour.rt_st ?? null,
+      plate_numbers: tour.plate_numbers ?? null,
+      waiting_times: tour.waiting_times ?? null,
+      comment: tour.comment ?? null,
+
+      reason_kpi_code_1: tour.reason_kpi_code_1 ?? null,
+      reason_kpi_code_2: tour.reason_kpi_code_2 ?? null,
+
+      delay_1: tour.delay_1 ?? null,
+      delay_2: tour.delay_2 ?? null,
+      delay_3: tour.delay_3 ?? null,
+      delay_4: tour.delay_4 ?? null,
+
+      loading_pls: tour.loading_pls ?? null,
+      unloading_empties_pls: tour.unloading_empties_pls ?? null,
+      result_1: tour.result_1 ?? null,
+      result_2: tour.result_2 ?? null,
+      unloading_result_1: tour.unloading_result_1 ?? null,
+      unloading_result_2: tour.unloading_result_2 ?? null,
+
+      eta_bgn_date: tour.eta_bgn_date ?? null,
+      eta_bgn_time: tour.eta_bgn_time ?? null,
+
       cancelled: false,
+      truck_number: tour.truck_number ?? null,
+      truck_type_id: tour.truck_type_id ?? null,
+      planned_arrival_werk1: tour.planned_arrival_werk1 ?? null,
     };
 
     const { data: insertedTour, error } = await supabase
       .from("tours")
-      .insert(insertPayload)
+      .insert(duplicatePayload)
       .select("*")
       .single();
 
     if (error || !insertedTour) {
-      console.error("duplicate tour insert error", error);
+      console.error("duplicate insert error", error);
       return;
     }
 
-    const sourceValues = values[tour.id] ?? {};
-    const valueEntries = Object.entries(sourceValues);
+    const sourceCustomValues = values[tour.id] ?? {};
+    const customColumns = columns.filter((c) => !isSystemColumn(c));
+    const allowedCustomIds = new Set(customColumns.map((c) => c.id));
 
-    if (valueEntries.length > 0) {
-      const inserts = valueEntries.map(([columnId, value]) => ({
+    const inserts = Object.entries(sourceCustomValues)
+      .filter(([columnId]) => allowedCustomIds.has(columnId))
+      .map(([columnId, value]) => ({
         tour_id: insertedTour.id,
         column_id: columnId,
         value,
       }));
 
-      const { error: valuesError } = await supabase
-        .from("tour_column_values")
-        .insert(inserts);
-
-      if (valuesError) {
-        console.error("duplicate values error", valuesError);
-      }
+    if (inserts.length > 0) {
+      await supabase.from("tour_column_values").insert(inserts);
     }
 
     setOpenMenuTourId(null);
   }
 
-  /* ================= CELL RENDER ================= */
+  /* ================= RENDER CELL ================= */
 
-  function renderCell(
-    tour: TourWithRelations,
-    col: TourColumn,
-    rowIndex: number,
-    colIndex: number
-  ) {
+  function renderSystemCell(tour: TourWithRelations, col: TourColumn) {
+    const key = col.key;
+    const fieldType = getFieldType(col);
+    const currentValue = getTourFieldValue(tour, key);
+
     if (tour.cancelled) {
       return <span className="tour-cancelled-text">storniert</span>;
     }
 
-    if (col.key === "truck_number") {
-      const currentValue = tour.truck_number ?? "";
+    if (fieldType === "boolean") {
+      const checked = Boolean(currentValue);
 
       return (
         <input
-          className="cell-input"
-          data-row={rowIndex}
-          data-col={colIndex}
-          value={currentValue}
-          onKeyDown={(e) =>
-            handleCellKeyDown(e, { row: rowIndex, col: colIndex }, currentValue, (pasted) => {
-              setTours((prev) =>
-                prev.map((t) => (t.id === tour.id ? { ...t, truck_number: pasted } : t))
-              );
-              queueTourFieldSave(tour.id, "truck_number", pasted);
-            })
-          }
+          type="checkbox"
+          checked={checked}
           onChange={(e) => {
-            const newValue = e.target.value;
+            const newValue = e.target.checked;
 
             setTours((prev) =>
               prev.map((t) =>
                 t.id === tour.id
-                  ? {
-                      ...t,
-                      truck_number: newValue,
-                    }
+                  ? { ...t, [key]: newValue }
                   : t
               )
             );
 
-            queueTourFieldSave(tour.id, "truck_number", newValue);
+            queueTourFieldSave(tour.id, key, newValue);
           }}
         />
       );
     }
 
-    if (col.key === "planned_arrival_werk1") {
-      const currentValue = toDatetimeLocal(tour.planned_arrival_werk1);
-
+    if (fieldType === "date") {
       return (
         <input
           className="cell-input"
-          data-row={rowIndex}
-          data-col={colIndex}
-          type="datetime-local"
-          value={currentValue}
-          onKeyDown={(e) =>
-            handleCellKeyDown(e, { row: rowIndex, col: colIndex }, currentValue, (pasted) => {
-              const nextValue = fromDatetimeLocal(pasted);
-              setTours((prev) =>
-                prev.map((t) =>
-                  t.id === tour.id ? { ...t, planned_arrival_werk1: nextValue } : t
-                )
-              );
-              queueTourFieldSave(tour.id, "planned_arrival_werk1", nextValue);
-            })
-          }
+          type="date"
+          value={(currentValue as string | null) ?? ""}
           onChange={(e) => {
-            const raw = e.target.value;
-            const newValue = fromDatetimeLocal(raw);
+            const newValue = e.target.value || null;
 
             setTours((prev) =>
               prev.map((t) =>
                 t.id === tour.id
-                  ? {
-                      ...t,
-                      planned_arrival_werk1: newValue,
-                    }
+                  ? { ...t, [key]: newValue }
                   : t
               )
             );
 
-            queueTourFieldSave(tour.id, "planned_arrival_werk1", newValue);
+            queueTourFieldSave(tour.id, key, newValue);
           }}
         />
       );
     }
 
-    if (col.key === "truck_type_id") {
-      return <div className="cell-readonly">{tour.truck_types?.name ?? "-"}</div>;
-    }
+    if (fieldType === "time") {
+      return (
+        <input
+          className="cell-input"
+          type="time"
+          value={(currentValue as string | null)?.slice(0, 5) ?? ""}
+          onChange={(e) => {
+            const newValue = e.target.value || null;
 
-    const currentValue = values[tour.id]?.[col.id] ?? "";
+            setTours((prev) =>
+              prev.map((t) =>
+                t.id === tour.id
+                  ? { ...t, [key]: newValue }
+                  : t
+              )
+            );
+
+            queueTourFieldSave(tour.id, key, newValue);
+          }}
+        />
+      );
+    }
 
     return (
       <input
         className="cell-input"
-        data-row={rowIndex}
-        data-col={colIndex}
-        value={currentValue}
-        onKeyDown={(e) =>
-          handleCellKeyDown(e, { row: rowIndex, col: colIndex }, currentValue, (pasted) => {
-            setValues((prev) => ({
-              ...prev,
-              [tour.id]: {
-                ...(prev[tour.id] ?? {}),
-                [col.id]: pasted,
-              },
-            }));
-            queueColumnSave(tour.id, col.id, pasted);
-          })
-        }
+        type="text"
+        value={(currentValue as string | null) ?? ""}
+        onChange={(e) => {
+          const newValue = e.target.value;
+
+          setTours((prev) =>
+            prev.map((t) =>
+              t.id === tour.id
+                ? { ...t, [key]: newValue }
+                : t
+            )
+          );
+
+          queueTourFieldSave(tour.id, key, newValue);
+        }}
+      />
+    );
+  }
+
+  function renderCustomCell(tour: TourWithRelations, col: TourColumn) {
+    const value = values[tour.id]?.[col.id] ?? "";
+
+    if (tour.cancelled) {
+      return <span className="tour-cancelled-text">storniert</span>;
+    }
+
+    return (
+      <input
+        className="cell-input"
+        type="text"
+        value={value}
         onChange={(e) => {
           const newValue = e.target.value;
 
@@ -949,10 +1007,18 @@ export default function WeekDetail() {
             },
           }));
 
-          queueColumnSave(tour.id, col.id, newValue);
+          queueCustomValueSave(tour.id, col.id, newValue);
         }}
       />
     );
+  }
+
+  function renderCell(tour: TourWithRelations, col: TourColumn) {
+    if (isSystemColumn(col)) {
+      return renderSystemCell(tour, col);
+    }
+
+    return renderCustomCell(tour, col);
   }
 
   /* ================= UI ================= */
@@ -1002,30 +1068,25 @@ export default function WeekDetail() {
               value={bulkMode}
               onChange={(e) => setBulkMode(e.target.value as BulkMode)}
             >
-              <option value="truck_number">Truck Nummer</option>
-              <option value="custom">Freie Spalte</option>
+              <option value="system">Systemfelder</option>
+              <option value="custom">Custom Felder</option>
             </select>
 
-            {bulkMode === "custom" && (
-              <select
-                className="bulk-select"
-                value={bulkColumnId}
-                onChange={(e) => setBulkColumnId(e.target.value)}
-              >
-                {visibleColumns
-                  .filter(
-                    (col) =>
-                      col.key !== "truck_number" &&
-                      col.key !== "truck_type_id" &&
-                      col.key !== "planned_arrival_werk1"
-                  )
-                  .map((col) => (
-                    <option key={col.id} value={col.id}>
-                      {col.label}
-                    </option>
-                  ))}
-              </select>
-            )}
+            <select
+              className="bulk-select"
+              value={bulkColumnId}
+              onChange={(e) => setBulkColumnId(e.target.value)}
+            >
+              {visibleColumns
+                .filter((col) =>
+                  bulkMode === "system" ? isSystemColumn(col) : !isSystemColumn(col)
+                )
+                .map((col) => (
+                  <option key={col.id} value={col.id}>
+                    {col.label}
+                  </option>
+                ))}
+            </select>
 
             <input
               className="bulk-input"
@@ -1073,15 +1134,9 @@ export default function WeekDetail() {
                   <table className="dispo-table">
                     <thead>
                       <tr className="group-row">
-                        <th rowSpan={2} className="sticky-col select-col">
-                          ✓
-                        </th>
-                        <th rowSpan={2} className="action-col">
-                          ⇅
-                        </th>
-                        <th rowSpan={2} className="menu-col">
-                          ⋯
-                        </th>
+                        <th rowSpan={2} className="sticky-col select-col">✓</th>
+                        <th rowSpan={2} className="action-col">⇅</th>
+                        <th rowSpan={2} className="menu-col">⋯</th>
 
                         {groups.map((group) => {
                           const groupColumns = columnsByGroup[group.id] ?? [];
@@ -1103,7 +1158,7 @@ export default function WeekDetail() {
                     </thead>
 
                     <tbody>
-                      {dayTours.map((tour, rowIndex) => {
+                      {dayTours.map((tour) => {
                         const rowClass = getRowClass(tour);
                         const isSelected = selectedRows.includes(tour.id);
                         const menuOpen = openMenuTourId === tour.id;
@@ -1145,11 +1200,11 @@ export default function WeekDetail() {
                               <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   className="icon-btn"
-                                  title="Tour Aktionen"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenMenuTourId(menuOpen ? null : tour.id);
                                   }}
+                                  title="Tour Aktionen"
                                 >
                                   ⋯
                                 </button>
@@ -1181,8 +1236,8 @@ export default function WeekDetail() {
                               </div>
                             </td>
 
-                            {visibleColumns.map((col, colIndex) => (
-                              <td key={col.id}>{renderCell(tour, col, rowIndex, colIndex)}</td>
+                            {visibleColumns.map((col) => (
+                              <td key={col.id}>{renderCell(tour, col)}</td>
                             ))}
                           </DraggableRow>
                         );
