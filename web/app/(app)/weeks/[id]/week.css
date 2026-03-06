@@ -1,182 +1,205 @@
 .week-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 24px;
+  background: #f6f8fb;
+  min-height: 100vh;
 }
 
-/* HEADER */
-
-.week-header {
+.week-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .week-subtitle {
-  margin-top: 6px;
-  color: #64748b;
+  margin: 6px 0 0;
+  color: #667085;
   font-size: 14px;
 }
 
-/* BUTTON */
+.week-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selection-badge {
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-primary,
+.btn-secondary {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
 
 .btn-primary {
-  background: #2563eb;
+  background: #111827;
   color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
 }
 
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-
-/* DAY CARD */
-
-.day-card {
+.btn-secondary {
   background: white;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  color: #111827;
+  border: 1px solid #d0d5dd;
+}
+
+.day-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  margin-bottom: 20px;
   overflow: hidden;
-  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
-/* DAY HEADER */
-
-.day-header {
+.day-section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  background: #f8fafc;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eef2f6;
+  background: #fbfcfe;
 }
 
-.day-header:hover {
-  background: #eef2f7;
+.day-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #667085;
+  font-size: 14px;
 }
 
-.day-count {
-  background: #2563eb;
-  color: white;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
+.day-dropzone {
+  transition: background 0.15s ease;
 }
 
-/* TABLE WRAPPER (für Scroll + Sticky) */
-
-.table-wrapper {
-  max-height: 420px;
-  overflow-y: auto;
+.day-dropzone-active {
+  background: #f0f9ff;
 }
 
-/* TABLE */
+.table-scroll {
+  overflow: auto;
+}
 
-.tour-table {
+.dispo-table {
   width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 1200px;
 }
 
-/* STICKY HEADER */
-
-.tour-table thead th {
-  position: sticky;
-  top: 0;
+.dispo-table thead th {
   background: #f8fafc;
-  z-index: 10;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
   text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.group-row th {
+  background: #eef2f7 !important;
+  color: #111827;
   font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  padding: 8px 10px;
-  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-/* TABLE ROW */
-
-.tour-table td {
-  padding: 4px 8px;
+.dispo-table tbody td {
+  padding: 6px 8px;
   border-bottom: 1px solid #f1f5f9;
-}
-
-/* INPUTS */
-
-.tour-table input,
-.tour-table select {
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 4px 6px;
+  vertical-align: middle;
   background: white;
-  font-size: 13px;
 }
 
-.tour-table input:focus {
-  outline: none;
-  border-color: #2563eb;
-  background: #f8fafc;
+.tour-row:hover td {
+  background: #fafcff;
 }
 
-/* ROW COLORING */
+.tour-row-selected td {
+  background: #eef4ff !important;
+}
+
+.tour-row-cancelled td {
+  background: #fff1f2;
+}
 
 .tour-row-singletrip td {
-  background: #dcfce7;
+  background: #eff8ff;
 }
 
 .tour-row-return td {
-  background: #e0f2fe;
+  background: #ecfdf3;
 }
 
-/* TRUCK TYPE BADGE */
-
-.truck-type-cell {
-  font-weight: 600;
-  text-align: center;
-  padding: 4px 8px;
-  border-radius: 6px;
-  color: #000;
-  display: inline-block;
+.cell-input {
+  width: 100%;
+  min-width: 120px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 6px 8px;
+  outline: none;
 }
 
-.truck-type-singletrip {
-  background: #dcfce7;
+.cell-input:hover {
+  background: #f8fafc;
+  border-color: #e5e7eb;
 }
 
-.truck-type-return {
-  background: #e0f2fe;
+.cell-input:focus {
+  background: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
-/* CANCELLED TOUR */
-
-.tour-row-cancelled td {
-  background: #fecaca;
-  color: #7f1d1d;
-  text-decoration: line-through;
+.cell-readonly {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  color: #475467;
+  padding: 0 8px;
 }
 
 .tour-cancelled-text {
-  opacity: 0.6;
-  font-style: italic;
+  color: #b42318;
+  font-weight: 700;
 }
 
-/* DRAG FEEDBACK */
-
-tr[style*="opacity: 0.5"] {
-  background: #f1f5f9;
+.select-col {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
 }
 
-/* EMPTY */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: inherit;
+}
 
-.empty-day {
-  padding: 16px 20px;
-  color: #64748b;
-  font-style: italic;
+.dispo-table thead .sticky-col {
+  z-index: 3;
+}
+
+.empty-day-cell {
+  text-align: center;
+  color: #667085;
+  padding: 20px !important;
 }

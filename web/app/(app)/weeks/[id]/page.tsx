@@ -1,332 +1,787 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tour, TourColumn, TourValue } from "@/types/database";
 import NewTourModal from "@/components/NewTourModal";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import "./week.css";
 
 /* ================= TYPES ================= */
 
 type PlanningWeek = {
-id: string;
-year: number;
-week_number: number;
+  id: string;
+  year: number;
+  week_number: number;
+  start_date?: string;
+  end_date?: string;
 };
 
 type PlanningDay = {
-id: string;
-planning_week_id: string;
-date: string;
+  id: string;
+  planning_week_id: string;
+  date: string;
+  position?: number;
 };
 
 type ColumnGroup = {
-id: string;
-name: string;
-order_index: number;
+  id: string;
+  name: string;
+  order_index: number;
+  is_visible?: boolean;
 };
 
+type TruckTypeRelation = {
+  id?: string;
+  name: string;
+} | null;
+
 type TourWithRelations = Tour & {
-truck_number?: string | null;
-planned_arrival_werk1?: string | null;
-truck_types?: { name: string } | null;
+  cancelled?: boolean | null;
+  truck_number?: string | null;
+  planned_arrival_werk1?: string | null;
+  planning_day_id?: string | null;
+  position?: number | null;
+  truck_type_id?: string | null;
+  truck_types?: TruckTypeRelation;
 };
+
+type DragItem = {
+  tourId: string;
+  sourceDayId: string | null;
+};
+
+type CellCoord = {
+  row: number;
+  col: number;
+};
+
+const DND_TYPE = "TOUR_ROW";
+
+/* ================= HELPERS ================= */
+
+function toDatetimeLocal(value: string | null | undefined) {
+  if (!value) return "";
+  return value.slice(0, 16);
+}
+
+function fromDatetimeLocal(value: string) {
+  if (!value) return null;
+  return value.length === 16 ? `${value}:00` : value;
+}
+
+function getRowClass(tour: TourWithRelations) {
+  if (tour.cancelled) return "tour-row tour-row-cancelled";
+  if (tour.truck_types?.name === "SingleTrip") return "tour-row tour-row-singletrip";
+  if (tour.truck_types?.name === "Return") return "tour-row tour-row-return";
+  return "tour-row";
+}
+
+/* ================= DND ================= */
+
+function DraggableRow({
+  tour,
+  children,
+  className,
+}: {
+  tour: TourWithRelations;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTableRowElement | null>(null);
+
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: DND_TYPE,
+    item: {
+      tourId: tour.id,
+      sourceDayId: tour.planning_day_id ?? null,
+    } satisfies DragItem,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }), [tour.id, tour.planning_day_id]);
+
+  useEffect(() => {
+    if (ref.current) {
+      drag(ref.current);
+    }
+  }, [drag]);
+
+  return (
+    <tr
+      ref={ref}
+      className={className}
+      style={{ opacity: isDragging ? 0.45 : 1, cursor: "grab" }}
+    >
+      {children}
+    </tr>
+  );
+}
+
+function DayDropZone({
+  dayId,
+  onDropTour,
+  children,
+}: {
+  dayId: string;
+  onDropTour: (tourId: string, targetDayId: string) => Promise<void>;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
+    accept: DND_TYPE,
+    drop: async (item: DragItem) => {
+      await onDropTour(item.tourId, dayId);
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver({ shallow: true }),
+      canDrop: monitor.canDrop(),
+    }),
+  }), [dayId, onDropTour]);
+
+  useEffect(() => {
+    if (ref.current) {
+      drop(ref.current);
+    }
+  }, [drop]);
+
+  return (
+    <div
+      ref={ref}
+      className={isOver && canDrop ? "day-dropzone day-dropzone-active" : "day-dropzone"}
+    >
+      {children}
+    </div>
+  );
+}
 
 /* ================= PAGE ================= */
 
 export default function WeekDetail() {
-
-const params = useParams()
-const weekId = params.id as string
-
-const [week,setWeek] = useState<PlanningWeek|null>(null)
-const [days,setDays] = useState<PlanningDay[]>([])
-const [groups,setGroups] = useState<ColumnGroup[]>([])
-const [columns,setColumns] = useState<TourColumn[]>([])
-const [tours,setTours] = useState<TourWithRelations[]>([])
-const [values,setValues] = useState<Record<string,Record<string,string>>>({})
-
-const [modalOpen,setModalOpen] = useState(false)
-const [selectedDay,setSelectedDay] = useState<string|null>(null)
-
-const saveTimer = useRef<any>(null)
-
-/* ================= LOAD ================= */
-
-useEffect(()=>{
-
-if(!weekId) return
-
-;(async()=>{
-
-const {data:weekData} = await supabase
-.from("planning_weeks")
-.select("*")
-.eq("id",weekId)
-.maybeSingle()
-
-const {data:dayData} = await supabase
-.from("planning_days")
-.select("*")
-.eq("planning_week_id",weekId)
-.order("date")
-
-const {data:groupData} = await supabase
-.from("column_groups")
-.select("*")
-.eq("is_visible",true)
-.order("order_index")
-
-const {data:columnData} = await supabase
-.from("tour_columns")
-.select("*")
-.eq("is_visible",true)
-.order("order_index")
-
-const dayIds = (dayData??[]).map(d=>d.id)
-
-const {data:tourData} =
-dayIds.length
-? await supabase
-.from("tours")
-.select(`*, truck_types(name)`)
-.in("planning_day_id",dayIds)
-.order("position")
-: {data:[]}
-
-const tourIds = tourData?.map(t=>t.id) ?? []
-
-const {data:valueData} =
-tourIds.length
-? await supabase
-.from("tour_column_values")
-.select("*")
-.in("tour_id",tourIds)
-: {data:[]}
-
-const valueMap:Record<string,Record<string,string>> = {}
-
-;(valueData as TourValue[]).forEach(v=>{
-
-if(!v.tour_id || !v.column_id) return
-
-if(!valueMap[v.tour_id]) valueMap[v.tour_id] = {}
-
-valueMap[v.tour_id][v.column_id] = v.value ?? ""
-
-})
-
-setWeek(weekData??null)
-setDays(dayData??[])
-setGroups(groupData??[])
-setColumns(columnData??[])
-setTours((tourData??[]) as TourWithRelations[])
-setValues(valueMap)
-
-})()
-
-},[weekId])
-
-/* ================= UPDATE ================= */
-
-async function saveColumn(
-tourId:string,
-columnId:string,
-value:string
-){
-
-await supabase
-.from("tour_column_values")
-.upsert({
-tour_id:tourId,
-column_id:columnId,
-value:value
-})
-
-}
-
-/* ================= GROUPING ================= */
-
-const columnsByGroup = useMemo(()=>{
-
-const map:Record<string,TourColumn[]> = {}
-
-groups.forEach(g=>map[g.id] = [])
-
-columns.forEach(c=>{
-if(c.column_group_id)
-map[c.column_group_id]?.push(c)
-})
-
-return map
-
-},[columns,groups])
-
-const toursByDay = useMemo(()=>{
-
-const map:Record<string,TourWithRelations[]> = {}
-
-days.forEach(d=>map[d.id] = [])
-
-tours.forEach(t=>{
-if(t.planning_day_id)
-map[t.planning_day_id]?.push(t)
-})
-
-return map
-
-},[days,tours])
-
-/* ================= CELL ================= */
-
-function renderCell(tour:TourWithRelations,col:TourColumn){
-
-const value = values[tour.id]?.[col.id] ?? ""
-
-return(
-
-<input
-value={value}
-
-onChange={(e)=>{
-
-const newValue = e.target.value
-
-setValues(prev=>({
-...prev,
-[tour.id]:{
-...prev[tour.id],
-[col.id]:newValue
-}
-}))
-
-clearTimeout(saveTimer.current)
-
-saveTimer.current = setTimeout(()=>{
-
-saveColumn(tour.id,col.id,newValue)
-
-},500)
-
-}}
-
-className="cell-input"
-/>
-
-)
-
-}
-
-/* ================= UI ================= */
-
-if(!week) return <div>Loading...</div>
-
-return(
-
-<div className="week-container">
-
-<h1>
-KW {week.week_number} / {week.year}
-</h1>
-
-<button
-className="btn-primary"
-onClick={()=>setModalOpen(true)}
-
->
-
-* Neue Tour
-
-  </button>
-
-{days.map(day=>{
-
-const dayTours = toursByDay[day.id] ?? []
-
-return(
-
-<div key={day.id} className="day-section">
-
-<h2>
-{new Date(day.date).toLocaleDateString("de-DE",{
-weekday:"long",
-day:"2-digit",
-month:"2-digit"
-})}
-</h2>
-
-<table className="dispo-table">
-
-<thead>
-
-<tr className="group-row">
-
-{groups.map(group=>{
-
-const cols = columnsByGroup[group.id] ?? []
-
-if(!cols.length) return null
-
-return(
-
-<th key={group.id} colSpan={cols.length}>
-{group.name}
-</th>
-)
-
-})}
-
-</tr>
-
-<tr>
-
-{columns.map(col=>(
-
-<th key={col.id}>{col.label}</th>
-))}
-
-</tr>
-
-</thead>
-
-<tbody>
-
-{dayTours.map(tour=>(
-
-<tr key={tour.id}>
-
-{columns.map(col=>(
-
-<td key={col.id}>
-{renderCell(tour,col)}
-</td>
-))}
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
-
-</div>
-
-)
-
-})}
-
-<NewTourModal
-isOpen={modalOpen}
-onClose={()=>setModalOpen(false)}
-weekId={weekId}
-dayId={selectedDay}
-days={days}
-/>
-
-</div>
-
-)
-
+  const params = useParams();
+  const weekId = params.id as string;
+
+  const [week, setWeek] = useState<PlanningWeek | null>(null);
+  const [days, setDays] = useState<PlanningDay[]>([]);
+  const [columns, setColumns] = useState<TourColumn[]>([]);
+  const [groups, setGroups] = useState<ColumnGroup[]>([]);
+  const [tours, setTours] = useState<TourWithRelations[]>([]);
+  const [values, setValues] = useState<Record<string, Record<string, string>>>({});
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  /* ================= LOAD ================= */
+
+  useEffect(() => {
+    if (!weekId) return;
+
+    let isMounted = true;
+
+    async function loadWeek() {
+      setLoading(true);
+
+      const { data: weekData, error: weekError } = await supabase
+        .from("planning_weeks")
+        .select("*")
+        .eq("id", weekId)
+        .maybeSingle();
+
+      if (weekError) {
+        console.error("planning_weeks load error", weekError);
+      }
+
+      const { data: dayData, error: dayError } = await supabase
+        .from("planning_days")
+        .select("*")
+        .eq("planning_week_id", weekId)
+        .order("date");
+
+      if (dayError) {
+        console.error("planning_days load error", dayError);
+      }
+
+      const { data: groupData, error: groupError } = await supabase
+        .from("column_groups")
+        .select("*")
+        .eq("is_visible", true)
+        .order("order_index");
+
+      if (groupError) {
+        console.error("column_groups load error", groupError);
+      }
+
+      const { data: columnData, error: columnError } = await supabase
+        .from("tour_columns")
+        .select("*")
+        .eq("is_visible", true)
+        .order("order_index");
+
+      if (columnError) {
+        console.error("tour_columns load error", columnError);
+      }
+
+      const dayIds = (dayData ?? []).map((d) => d.id);
+
+      const tourResponse =
+        dayIds.length > 0
+          ? await supabase
+              .from("tours")
+              .select("*, truck_types(id, name)")
+              .in("planning_day_id", dayIds)
+              .order("planning_day_id")
+              .order("position")
+          : { data: [], error: null };
+
+      if (tourResponse.error) {
+        console.error("tours load error", tourResponse.error);
+      }
+
+      const tourData = (tourResponse.data ?? []) as TourWithRelations[];
+      const tourIds = tourData.map((t) => t.id);
+
+      const valueResponse =
+        tourIds.length > 0
+          ? await supabase
+              .from("tour_column_values")
+              .select("*")
+              .in("tour_id", tourIds)
+          : { data: [], error: null };
+
+      if (valueResponse.error) {
+        console.error("tour_column_values load error", valueResponse.error);
+      }
+
+      const valueMap: Record<string, Record<string, string>> = {};
+
+      ((valueResponse.data ?? []) as TourValue[]).forEach((val) => {
+        if (!val.tour_id || !val.column_id) return;
+        if (!valueMap[val.tour_id]) valueMap[val.tour_id] = {};
+        valueMap[val.tour_id][val.column_id] = val.value ?? "";
+      });
+
+      if (!isMounted) return;
+
+      setWeek(weekData ?? null);
+      setDays(dayData ?? []);
+      setGroups(groupData ?? []);
+      setColumns(columnData ?? []);
+      setTours(tourData);
+      setValues(valueMap);
+
+      if ((dayData ?? []).length > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        const todayDay = dayData?.find((d) => d.date === today);
+        setSelectedDayId(todayDay?.id ?? dayData?.[0]?.id ?? null);
+      }
+
+      setLoading(false);
+    }
+
+    loadWeek();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [weekId]);
+
+  /* ================= REALTIME ================= */
+
+  useEffect(() => {
+    if (!weekId) return;
+
+    const channel = supabase
+      .channel(`week-live-${weekId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tours" },
+        (payload) => {
+          setTours((prev) => {
+            if (payload.eventType === "INSERT") {
+              const next = payload.new as TourWithRelations;
+              if (prev.some((t) => t.id === next.id)) return prev;
+              return [...prev, next];
+            }
+
+            if (payload.eventType === "UPDATE") {
+              const updated = payload.new as TourWithRelations;
+              return prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
+            }
+
+            if (payload.eventType === "DELETE") {
+              return prev.filter((t) => t.id !== payload.old.id);
+            }
+
+            return prev;
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tour_column_values" },
+        (payload) => {
+          setValues((prev) => {
+            if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+              const row = payload.new as TourValue;
+              if (!row.tour_id || !row.column_id) return prev;
+
+              return {
+                ...prev,
+                [row.tour_id]: {
+                  ...(prev[row.tour_id] ?? {}),
+                  [row.column_id]: row.value ?? "",
+                },
+              };
+            }
+
+            if (payload.eventType === "DELETE") {
+              const row = payload.old as TourValue;
+              if (!row.tour_id || !row.column_id) return prev;
+
+              const nextTourValues = { ...(prev[row.tour_id] ?? {}) };
+              delete nextTourValues[row.column_id];
+
+              return {
+                ...prev,
+                [row.tour_id]: nextTourValues,
+              };
+            }
+
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [weekId]);
+
+  /* ================= DERIVED ================= */
+
+  const visibleColumns = useMemo(() => {
+    return columns.filter((c) => c.is_visible);
+  }, [columns]);
+
+  const columnsByGroup = useMemo(() => {
+    const map: Record<string, TourColumn[]> = {};
+    groups.forEach((g) => {
+      map[g.id] = [];
+    });
+
+    visibleColumns.forEach((col) => {
+      if (!col.column_group_id) return;
+      map[col.column_group_id]?.push(col);
+    });
+
+    return map;
+  }, [groups, visibleColumns]);
+
+  const orderedDayIds = useMemo(() => days.map((d) => d.id), [days]);
+
+  const toursByDay = useMemo(() => {
+    const map: Record<string, TourWithRelations[]> = {};
+    days.forEach((d) => {
+      map[d.id] = [];
+    });
+
+    tours.forEach((tour) => {
+      if (!tour.planning_day_id) return;
+      map[tour.planning_day_id]?.push(tour);
+    });
+
+    Object.keys(map).forEach((dayId) => {
+      map[dayId].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    });
+
+    return map;
+  }, [days, tours]);
+
+  /* ================= SAVE ================= */
+
+  const queueColumnSave = useCallback((tourId: string, columnId: string, value: string) => {
+    const timerKey = `${tourId}:${columnId}`;
+
+    if (saveTimersRef.current[timerKey]) {
+      clearTimeout(saveTimersRef.current[timerKey]);
+    }
+
+    saveTimersRef.current[timerKey] = setTimeout(async () => {
+      const { error } = await supabase
+        .from("tour_column_values")
+        .upsert({
+          tour_id: tourId,
+          column_id: columnId,
+          value,
+        });
+
+      if (error) {
+        console.error("tour_column_values save error", error);
+      }
+    }, 350);
+  }, []);
+
+  const queueTourFieldSave = useCallback((tourId: string, field: string, value: unknown) => {
+    const timerKey = `${tourId}:field:${field}`;
+
+    if (saveTimersRef.current[timerKey]) {
+      clearTimeout(saveTimersRef.current[timerKey]);
+    }
+
+    saveTimersRef.current[timerKey] = setTimeout(async () => {
+      const { error } = await supabase
+        .from("tours")
+        .update({ [field]: value })
+        .eq("id", tourId);
+
+      if (error) {
+        console.error(`tours save error for ${field}`, error);
+      }
+    }, 350);
+  }, []);
+
+  /* ================= DND SAVE ================= */
+
+  const moveTourToDay = useCallback(async (tourId: string, targetDayId: string) => {
+    setTours((prev) =>
+      prev.map((tour) =>
+        tour.id === tourId
+          ? {
+              ...tour,
+              planning_day_id: targetDayId,
+            }
+          : tour
+      )
+    );
+
+    const targetCount = (toursByDay[targetDayId] ?? []).length;
+    const { error } = await supabase
+      .from("tours")
+      .update({
+        planning_day_id: targetDayId,
+        position: targetCount + 1,
+      })
+      .eq("id", tourId);
+
+    if (error) {
+      console.error("drag move error", error);
+    }
+  }, [toursByDay]);
+
+  /* ================= KEYBOARD NAV ================= */
+
+  function getCellInput(row: number, col: number) {
+    return document.querySelector<HTMLInputElement>(
+      `[data-row="${row}"][data-col="${col}"]`
+    );
+  }
+
+  function handleCellKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    coord: CellCoord
+  ) {
+    const { row, col } = coord;
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      getCellInput(row + 1, col)?.focus();
+      return;
+    }
+
+    if (e.key === "Tab") {
+      if (e.shiftKey) {
+        e.preventDefault();
+        getCellInput(row, col - 1)?.focus();
+      } else {
+        e.preventDefault();
+        getCellInput(row, col + 1)?.focus();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      getCellInput(row, col + 1)?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      getCellInput(row, col - 1)?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      getCellInput(row + 1, col)?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      getCellInput(row - 1, col)?.focus();
+    }
+  }
+
+  /* ================= ROW SELECT ================= */
+
+  function toggleRowSelection(tourId: string) {
+    setSelectedRows((prev) =>
+      prev.includes(tourId) ? prev.filter((id) => id !== tourId) : [...prev, tourId]
+    );
+  }
+
+  /* ================= CELL RENDER ================= */
+
+  function renderCell(
+    tour: TourWithRelations,
+    col: TourColumn,
+    rowIndex: number,
+    colIndex: number
+  ) {
+    if (tour.cancelled) {
+      return <span className="tour-cancelled-text">storniert</span>;
+    }
+
+    if (col.key === "truck_number") {
+      return (
+        <input
+          className="cell-input"
+          data-row={rowIndex}
+          data-col={colIndex}
+          value={tour.truck_number ?? ""}
+          onKeyDown={(e) => handleCellKeyDown(e, { row: rowIndex, col: colIndex })}
+          onChange={(e) => {
+            const newValue = e.target.value;
+
+            setTours((prev) =>
+              prev.map((t) =>
+                t.id === tour.id
+                  ? {
+                      ...t,
+                      truck_number: newValue,
+                    }
+                  : t
+              )
+            );
+
+            queueTourFieldSave(tour.id, "truck_number", newValue);
+          }}
+        />
+      );
+    }
+
+    if (col.key === "planned_arrival_werk1") {
+      return (
+        <input
+          className="cell-input"
+          data-row={rowIndex}
+          data-col={colIndex}
+          type="datetime-local"
+          value={toDatetimeLocal(tour.planned_arrival_werk1)}
+          onKeyDown={(e) => handleCellKeyDown(e, { row: rowIndex, col: colIndex })}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const newValue = fromDatetimeLocal(raw);
+
+            setTours((prev) =>
+              prev.map((t) =>
+                t.id === tour.id
+                  ? {
+                      ...t,
+                      planned_arrival_werk1: newValue,
+                    }
+                  : t
+              )
+            );
+
+            queueTourFieldSave(tour.id, "planned_arrival_werk1", newValue);
+          }}
+        />
+      );
+    }
+
+    if (col.key === "truck_type_id") {
+      return <div className="cell-readonly">{tour.truck_types?.name ?? "-"}</div>;
+    }
+
+    const value = values[tour.id]?.[col.id] ?? "";
+
+    return (
+      <input
+        className="cell-input"
+        data-row={rowIndex}
+        data-col={colIndex}
+        value={value}
+        onKeyDown={(e) => handleCellKeyDown(e, { row: rowIndex, col: colIndex })}
+        onChange={(e) => {
+          const newValue = e.target.value;
+
+          setValues((prev) => ({
+            ...prev,
+            [tour.id]: {
+              ...(prev[tour.id] ?? {}),
+              [col.id]: newValue,
+            },
+          }));
+
+          queueColumnSave(tour.id, col.id, newValue);
+        }}
+      />
+    );
+  }
+
+  /* ================= UI ================= */
+
+  if (loading) {
+    return <div className="week-container">Lade Woche...</div>;
+  }
+
+  if (!week) {
+    return <div className="week-container">Woche nicht gefunden.</div>;
+  }
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="week-container">
+        <div className="week-toolbar">
+          <div>
+            <h1>
+              KW {week.week_number} / {week.year}
+            </h1>
+            <p className="week-subtitle">
+              {days.length} Tage · {tours.length} Touren
+            </p>
+          </div>
+
+          <div className="week-toolbar-actions">
+            {selectedRows.length > 0 && (
+              <div className="selection-badge">
+                {selectedRows.length} markiert
+              </div>
+            )}
+
+            <button
+              className="btn-primary"
+              onClick={() => setModalOpen(true)}
+            >
+              + Neue Tour
+            </button>
+          </div>
+        </div>
+
+        {days.map((day) => {
+          const dayTours = toursByDay[day.id] ?? [];
+
+          return (
+            <section key={day.id} className="day-section">
+              <div className="day-section-header">
+                <h2>
+                  {new Date(day.date).toLocaleDateString("de-DE", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "2-digit",
+                  })}
+                </h2>
+
+                <div className="day-meta">
+                  <span>{dayTours.length} Touren</span>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSelectedDayId(day.id);
+                      setModalOpen(true);
+                    }}
+                  >
+                    + Tour für diesen Tag
+                  </button>
+                </div>
+              </div>
+
+              <DayDropZone dayId={day.id} onDropTour={moveTourToDay}>
+                <div className="table-scroll">
+                  <table className="dispo-table">
+                    <thead>
+                      <tr className="group-row">
+                        <th rowSpan={2} className="sticky-col select-col">✓</th>
+
+                        {groups.map((group) => {
+                          const groupColumns = columnsByGroup[group.id] ?? [];
+                          if (!groupColumns.length) return null;
+
+                          return (
+                            <th key={group.id} colSpan={groupColumns.length}>
+                              {group.name}
+                            </th>
+                          );
+                        })}
+                      </tr>
+
+                      <tr>
+                        {visibleColumns.map((col) => (
+                          <th key={col.id}>{col.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {dayTours.map((tour, rowIndex) => {
+                        const rowClass = getRowClass(tour);
+                        const isSelected = selectedRows.includes(tour.id);
+
+                        return (
+                          <DraggableRow
+                            key={tour.id}
+                            tour={tour}
+                            className={`${rowClass} ${isSelected ? "tour-row-selected" : ""}`}
+                          >
+                            <td className="sticky-col select-col">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleRowSelection(tour.id)}
+                              />
+                            </td>
+
+                            {visibleColumns.map((col, colIndex) => (
+                              <td key={col.id}>
+                                {renderCell(tour, col, rowIndex, colIndex)}
+                              </td>
+                            ))}
+                          </DraggableRow>
+                        );
+                      })}
+
+                      {dayTours.length === 0 && (
+                        <tr>
+                          <td colSpan={visibleColumns.length + 1} className="empty-day-cell">
+                            Keine Touren. Zieh eine Tour hierher oder lege eine neue an.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </DayDropZone>
+            </section>
+          );
+        })}
+
+        <NewTourModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          weekId={weekId}
+          dayId={selectedDayId ?? orderedDayIds[0] ?? null}
+          days={days}
+        />
+      </div>
+    </DndProvider>
+  );
 }
