@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Truck, LogIn } from "lucide-react";
@@ -158,22 +159,22 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="login-links-row">
-              <a href="/forgot-password" className="login-link-inline">
-                Passwort vergessen?
-              </a>
-              <a href="/register" className="login-link-inline">
-                Account erstellen
-              </a>
-            </div>
-
             {error && <div className="login-error">{error}</div>}
 
             <button type="submit" className="login-submit" disabled={loading}>
               <LogIn size={18} />
               <span>{loading ? "Meldet an..." : "Login"}</span>
             </button>
-              
+
+            <div className="login-links-row">
+              <Link href="/forgot-password" className="login-link-inline">
+                Passwort vergessen?
+              </Link>
+
+              <Link href="/register" className="login-link-inline">
+                Account erstellen
+              </Link>
+            </div>
           </form>
         </div>
       </div>
