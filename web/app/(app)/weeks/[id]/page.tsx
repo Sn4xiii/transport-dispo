@@ -1134,9 +1134,9 @@ export default function WeekDetail() {
                   <table className="dispo-table">
                     <thead>
                       <tr className="group-row">
-                        <th rowSpan={2} className="sticky-col select-col">✓</th>
-                        <th rowSpan={2} className="action-col">⇅</th>
-                        <th rowSpan={2} className="menu-col">⋯</th>
+                        <th rowSpan={2} className="sticky-col-1 select-col">✓</th>
+                        <th rowSpan={2} className="sticky-col-2 action-col">⇅</th>
+                        <th rowSpan={2} className="sticky-col-3 menu-col">⋯</th>
 
                         {groups.map((group) => {
                           const groupColumns = columnsByGroup[group.id] ?? [];
@@ -1169,7 +1169,7 @@ export default function WeekDetail() {
                             tour={tour}
                             className={`${rowClass} ${isSelected ? "tour-row-selected" : ""}`}
                           >
-                            <td className="sticky-col select-col">
+                            <td className="sticky-col-1 select-col">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -1177,7 +1177,7 @@ export default function WeekDetail() {
                               />
                             </td>
 
-                            <td className="action-col">
+                            <td className="sticky-col-2 action-col">
                               <div className="row-actions">
                                 <button
                                   className="icon-btn"
@@ -1196,7 +1196,7 @@ export default function WeekDetail() {
                               </div>
                             </td>
 
-                            <td className="menu-col">
+                            <td className="sticky-col-3 menu-col">
                               <div className="tour-menu-wrap" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   className="icon-btn"

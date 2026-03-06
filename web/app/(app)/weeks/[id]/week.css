@@ -1,5 +1,5 @@
 .week-container {
-  padding: 24px;
+  padding: 16px;
   background: #f6f8fb;
   min-height: 100vh;
 }
@@ -8,80 +8,91 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.week-toolbar h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
 }
 
 .week-subtitle {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: #667085;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .week-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .selection-badge {
   background: #eef2ff;
   color: #3730a3;
   border: 1px solid #c7d2fe;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .bulk-panel {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 20px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
 .bulk-panel-title {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 10px;
   color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .bulk-panel-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .bulk-select,
 .bulk-input {
-  height: 40px;
+  height: 34px;
   border: 1px solid #d0d5dd;
-  border-radius: 10px;
-  padding: 0 12px;
+  border-radius: 8px;
+  padding: 0 10px;
   background: white;
+  font-size: 13px;
 }
 
 .bulk-input {
-  min-width: 260px;
+  min-width: 220px;
 }
 
 .btn-primary,
 .btn-secondary,
 .icon-btn {
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 10px 14px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .btn-primary {
@@ -96,17 +107,18 @@
 }
 
 .icon-btn {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   background: #f8fafc;
   border: 1px solid #d0d5dd;
+  font-size: 12px;
 }
 
 .day-section {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  margin-bottom: 20px;
+  border-radius: 14px;
+  margin-bottom: 14px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
@@ -116,17 +128,22 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid #eef2f6;
   background: #fbfcfe;
+}
+
+.day-section-header h2 {
+  margin: 0;
+  font-size: 16px;
 }
 
 .day-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: #667085;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .day-dropzone {
@@ -145,33 +162,38 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1400px;
+  min-width: 2200px;
 }
 
 .dispo-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   background: #f8fafc;
   color: #344054;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   text-align: left;
-  padding: 10px 12px;
+  padding: 7px 8px;
   border-bottom: 1px solid #e5e7eb;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .group-row th {
   background: #eef2f7 !important;
   color: #111827;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .dispo-table tbody td {
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   background: white;
+  min-width: 110px;
 }
 
 .tour-row:hover td {
@@ -196,13 +218,14 @@
 
 .cell-input {
   width: 100%;
-  min-width: 120px;
-  height: 34px;
+  min-width: 90px;
+  height: 28px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  padding: 6px 8px;
+  padding: 4px 6px;
   outline: none;
+  font-size: 12px;
 }
 
 .cell-input:hover {
@@ -213,31 +236,39 @@
 .cell-input:focus {
   background: white;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
 }
 
 .cell-readonly {
-  min-height: 34px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   color: #475467;
-  padding: 0 8px;
+  padding: 0 6px;
+  font-size: 12px;
 }
 
 .tour-cancelled-text {
   color: #b42318;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 12px;
 }
 
 .select-col {
-  width: 44px;
-  min-width: 44px;
+  width: 38px;
+  min-width: 38px !important;
   text-align: center;
 }
 
 .action-col {
-  width: 64px;
-  min-width: 64px;
+  width: 56px;
+  min-width: 56px !important;
+  text-align: center;
+}
+
+.menu-col {
+  width: 56px;
+  min-width: 56px !important;
   text-align: center;
 }
 
@@ -250,23 +281,18 @@
 .sticky-col {
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 5;
   background: inherit;
 }
 
 .dispo-table thead .sticky-col {
-  z-index: 3;
+  z-index: 6;
 }
 
 .empty-day-cell {
   text-align: center;
   color: #667085;
-  padding: 20px !important;
-}
-.menu-col {
-  width: 64px;
-  min-width: 64px;
-  text-align: center;
+  padding: 18px !important;
 }
 
 .tour-menu-wrap {
@@ -275,12 +301,12 @@
 
 .tour-menu {
   position: absolute;
-  top: 36px;
+  top: 32px;
   right: 0;
   min-width: 170px;
   background: white;
   border: 1px solid #d0d5dd;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 12px 30px rgba(16, 24, 40, 0.16);
   padding: 6px;
   z-index: 30;
@@ -291,10 +317,10 @@
   border: 0;
   background: transparent;
   text-align: left;
-  padding: 10px 12px;
+  padding: 9px 10px;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 500;
+  font-size: 13px;
 }
 
 .tour-menu-item:hover {
@@ -307,4 +333,24 @@
 
 .tour-menu-item-danger:hover {
   background: #fff1f2;
+}
+.sticky-col-1 {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: inherit;
+}
+
+.sticky-col-2 {
+  position: sticky;
+  left: 38px;
+  z-index: 6;
+  background: inherit;
+}
+
+.sticky-col-3 {
+  position: sticky;
+  left: 94px;
+  z-index: 6;
+  background: inherit;
 }
