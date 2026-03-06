@@ -12,7 +12,7 @@ type Profile = {
   name: string | null;
   company: string | null;
   phone: string | null;
-  role: string | null;
+  role_id: string | null;
 };
 
 type Role = {
@@ -140,20 +140,29 @@ export default function AdminPage() {
 
   /* ================= DERIVED ================= */
 
+  const roleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    roles.forEach((role) => map.set(role.id, role.name));
+    return map;
+  }, [roles]);
+
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     if (!q) return users;
 
-    return users.filter(
-      (u) =>
+    return users.filter((u) => {
+      const roleName = u.role_id ? roleMap.get(u.role_id) ?? "" : "";
+
+      return (
         (u.email || "").toLowerCase().includes(q) ||
         (u.name || "").toLowerCase().includes(q) ||
         (u.company || "").toLowerCase().includes(q) ||
         (u.phone || "").toLowerCase().includes(q) ||
-        (u.role || "").toLowerCase().includes(q)
-    );
-  }, [users, search]);
+        roleName.toLowerCase().includes(q)
+      );
+    });
+  }, [users, search, roleMap]);
 
   const stats = useMemo(() => {
     return {
@@ -199,13 +208,15 @@ export default function AdminPage() {
 
   async function updateUser(
     id: string,
-    field: "name" | "company" | "phone" | "role",
+    field: "name" | "company" | "phone" | "role_id",
     value: string
   ) {
     const previous = users;
 
     setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, [field]: value } : u))
+      prev.map((u) =>
+        u.id === id ? { ...u, [field]: value || null } : u
+      )
     );
 
     const { error } = await supabase
@@ -322,6 +333,9 @@ export default function AdminPage() {
     }
 
     setRolePermissions((prev) => prev.filter((rp) => rp.role_id !== id));
+    setUsers((prev) =>
+      prev.map((u) => (u.role_id === id ? { ...u, role_id: null } : u))
+    );
     showSuccess("Rolle wurde gelöscht.");
   }
 
@@ -337,10 +351,7 @@ export default function AdminPage() {
 
       setRolePermissions((prev) =>
         prev.filter(
-          (rp) =>
-            !(
-              rp.role_id === roleId && rp.permission_id === permission.id
-            )
+          (rp) => !(rp.role_id === roleId && rp.permission_id === permission.id)
         )
       );
 
@@ -353,7 +364,6 @@ export default function AdminPage() {
       if (error) {
         setRolePermissions(previous);
         showError(error, "Permission konnte nicht entfernt werden.");
-        return;
       }
 
       return;
@@ -458,9 +468,7 @@ export default function AdminPage() {
     const previous = columns;
 
     setColumns((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, is_visible: !visible } : c
-      )
+      prev.map((c) => (c.id === id ? { ...c, is_visible: !visible } : c))
     );
 
     const { error } = await supabase
@@ -622,14 +630,14 @@ export default function AdminPage() {
 
                   <td>
                     <select
-                      value={user.role || ""}
+                      value={user.role_id || ""}
                       onChange={(e) =>
-                        updateUser(user.id, "role", e.target.value)
+                        updateUser(user.id, "role_id", e.target.value)
                       }
                     >
                       <option value="">No role</option>
                       {roles.map((r) => (
-                        <option key={r.id} value={r.name}>
+                        <option key={r.id} value={r.id}>
                           {r.name}
                         </option>
                       ))}
@@ -675,7 +683,7 @@ export default function AdminPage() {
 
           <div className="admin-role-grid">
             {roles.map((role) => {
-              const userCount = users.filter((u) => u.role === role.name).length;
+              const userCount = users.filter((u) => u.role_id === role.id).length;
               const permissionCount = rolePermissions.filter(
                 (rp) => rp.role_id === role.id
               ).length;
@@ -797,7 +805,9 @@ export default function AdminPage() {
                       ))}
 
                       {items.length === 0 && (
-                        <li className="admin-empty-inline">Keine Spalten in dieser Gruppe.</li>
+                        <li className="admin-empty-inline">
+                          Keine Spalten in dieser Gruppe.
+                        </li>
                       )}
                     </ul>
                   </div>
