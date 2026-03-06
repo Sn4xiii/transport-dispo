@@ -10,11 +10,10 @@ email:string | null
 name:string | null
 company:string | null
 phone:string | null
-role_id:string | null
 
 }
 
-export default function UsersTab(){
+export default function UsersTable(){
 
 const [users,setUsers] = useState<User[]>([])
 const [search,setSearch] = useState("")
@@ -39,17 +38,17 @@ if(data) setUsers(data)
 
 const filtered =
 users.filter(u =>
-(u.email || "").toLowerCase().includes(search.toLowerCase())
+(u.email || "")
+.toLowerCase()
+.includes(search.toLowerCase())
 )
 
 return(
 
 <div>
 
-<h2>Users</h2>
-
 <input
-placeholder="Search user"
+placeholder="Search user..."
 value={search}
 onChange={e=>setSearch(e.target.value)}
 />
@@ -57,12 +56,14 @@ onChange={e=>setSearch(e.target.value)}
 <table>
 
 <thead>
+
 <tr>
 <th>Email</th>
 <th>Name</th>
 <th>Company</th>
 <th>Phone</th>
 </tr>
+
 </thead>
 
 <tbody>

@@ -1,83 +1,85 @@
-.admin-layout {
-  display: flex;
-  height: 100vh;
-  background: #f7f8fa;
+.admin-layout{
+display:flex;
+height:100vh;
+background:#f8fafc;
 }
 
-.admin-sidebar {
-  width: 240px;
-  background: #111827;
-  color: white;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.admin-sidebar{
+width:240px;
+background:#111827;
+color:white;
+padding:24px;
 }
 
-.admin-sidebar button {
-  background: transparent;
-  border: none;
-  color: #d1d5db;
-  padding: 10px;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 6px;
+.logo{
+font-size:18px;
+margin-bottom:30px;
 }
 
-.admin-sidebar button:hover {
-  background: #1f2937;
-  color: white;
+.admin-sidebar button{
+display:block;
+width:100%;
+padding:10px;
+margin-bottom:8px;
+border:none;
+background:none;
+color:#d1d5db;
+text-align:left;
+cursor:pointer;
+border-radius:6px;
 }
 
-.admin-content {
-  flex: 1;
-  padding: 40px;
-  overflow: auto;
+.admin-sidebar button:hover{
+background:#1f2937;
+color:white;
 }
 
-.admin-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
+.admin-main{
+flex:1;
+display:flex;
+flex-direction:column;
 }
 
-.admin-tabs button {
-  border: none;
-  background: #e5e7eb;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
+.admin-header{
+height:60px;
+border-bottom:1px solid #eee;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 30px;
+background:white;
 }
 
-.admin-tabs button:hover {
-  background: #d1d5db;
+.admin-search{
+padding:8px 12px;
+border-radius:6px;
+border:1px solid #ddd;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
+.admin-content{
+padding:30px;
+overflow:auto;
 }
 
-thead {
-  background: #f3f4f6;
+table{
+width:100%;
+border-collapse:collapse;
+background:white;
+border-radius:8px;
+overflow:hidden;
 }
 
-th {
-  text-align: left;
-  padding: 12px;
-  font-size: 13px;
-  color: #374151;
+thead{
+background:#f1f5f9;
 }
 
-td {
-  padding: 12px;
-  border-top: 1px solid #eee;
+th{
+text-align:left;
+padding:12px;
+font-size:13px;
 }
-.permission-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+
+td{
+padding:12px;
+border-top:1px solid #eee;
 }
