@@ -1,0 +1,185 @@
+/* ========================= */
+/* ===== GLOBAL RESET ===== */
+/* ========================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  min-height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f4f6f9;
+  color: #1f2937;
+}
+
+/* Falls React / Vue Root-Element */
+#root,
+#app {
+  height: 100%;
+}
+
+
+/* ========================= */
+/* ===== APP LAYOUT ======= */
+/* ========================= */
+
+.app-body {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f4f6f9; /* verhindert schwarze Fläche */
+}
+
+.app-main {
+  flex: 1;
+  padding: 30px;
+  overflow-x: auto;
+  min-width: 0; /* WICHTIG bei Flex + Tabellen */
+  background-color: #f4f6f9;
+}
+
+
+/* ========================= */
+/* ===== HEADINGS ========= */
+/* ========================= */
+
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 0 0 12px 0;
+}
+
+
+/* ========================= */
+/* ===== BUTTONS ========== */
+/* ========================= */
+
+button {
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+
+/* ========================= */
+/* ===== TABLE BASE ======= */
+/* ========================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  text-align: left;
+}
+
+th {
+  background-color: #f1f5f9;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+tr:hover td {
+  background-color: #f9fafb;
+}
+
+
+/* ========================= */
+/* ===== INPUTS =========== */
+/* ========================= */
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+
+/* ========================= */
+/* ===== STATUS BOX ======= */
+/* ========================= */
+
+.status-box {
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.status-box.error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+
+/* ========================= */
+/* ===== SCROLLBAR ======== */
+/* ========================= */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
