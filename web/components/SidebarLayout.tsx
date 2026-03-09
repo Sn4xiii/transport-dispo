@@ -203,7 +203,7 @@ export default function SidebarLayout({
         </div>
 
         <div className="sidebar-footer">
-          <span>{sidebarOpen ? "Transit v1.0 by Mike" : "v1.0"}</span>
+          <span>{sidebarOpen ? "Transit v1.1 by Mike" : "v1.1"}</span>
         </div>
       </aside>
 
